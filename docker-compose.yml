@@ -37,6 +37,7 @@ services:
         condition: service_healthy
     environment:
       PORT: 8080
+      BIFROST_DATABASE_URL: postgres://bifrost:bifrost@postgres:5432/bifrost?sslmode=disable
       BIFROST_UPSTREAM_GITLAB: http://mock-gitlab:8080
       BIFROST_UPSTREAM_JENKINS: http://mock-jenkins:8080
       BIFROST_UPSTREAM_DOCS: http://mock-docs:8080

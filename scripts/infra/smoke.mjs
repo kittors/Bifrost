@@ -21,6 +21,12 @@ async function main() {
     "gateway health check failed",
   );
 
+  await assertJson(
+    `http://127.0.0.1:${gatewayPort}/readyz`,
+    (payload) => payload.status === "ready",
+    "gateway readiness check failed",
+  );
+
   for (const serviceKey of services) {
     await assertJson(
       `http://127.0.0.1:${gatewayPort}/debug/upstreams/${serviceKey}`,
