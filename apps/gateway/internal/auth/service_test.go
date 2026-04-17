@@ -630,6 +630,170 @@ func TestServiceGetClientServiceAndCreateAccessURLRequireAuthorization(t *testin
 	}
 }
 
+func TestServiceResolveProxyRequestByServiceKeyEnforcesPolicy(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	dsn := createTestDatabase(t, ctx)
+	if err := database.MigrateUp(ctx, dsn); err != nil {
+		t.Fatalf("migrate up: %v", err)
+	}
+
+	db := openDB(t, dsn)
+	now := time.Date(2026, time.April, 17, 13, 30, 0, 0, time.UTC)
+	sessionCounter := 0
+	service := auth.Service{
+		DB:              db,
+		PasswordHasher:  auth.DefaultPasswordHasher(),
+		TokenIssuer:     auth.TokenIssuer{Secret: []byte("0123456789abcdef0123456789abcdef"), TTL: 15 * time.Minute, Now: func() time.Time { return now }},
+		Now:             func() time.Time { return now },
+		RefreshTokenTTL: 7 * 24 * time.Hour,
+		SessionIDFactory: func() (string, error) {
+			sessionCounter++
+			return fmt.Sprintf("session_proxy_%02d", sessionCounter), nil
+		},
+	}
+
+	insertUserWithRoles(t, ctx, db, "user_alice", "alice", "Alice", "correct horse battery staple", []roleSeed{{id: "role_developer", name: "developer", displayName: "Developer"}})
+	insertUserWithRoles(t, ctx, db, "user_bob", "bob", "Bob", "correct horse battery staple", []roleSeed{{id: "role_ops", name: "ops", displayName: "Operations"}})
+	insertService(t, ctx, db, "service_gitlab", "gitlab", "GitLab", "engineering", "/s/gitlab", "enabled")
+	insertService(t, ctx, db, "service_jenkins", "jenkins", "Jenkins", "operations", "/s/jenkins", "enabled")
+	insertRoleService(t, ctx, db, "role_developer", "service_gitlab")
+	insertRoleService(t, ctx, db, "role_ops", "service_jenkins")
+	insertUserServiceOverride(t, ctx, db, "user_bob", "service_jenkins", "deny")
+	insertDevice(t, ctx, db, "device_alice_01", "user_alice", "trusted")
+	insertDevice(t, ctx, db, "device_bob_01", "user_bob", "trusted")
+
+	aliceLogin, err := service.ClientLogin(ctx, auth.ClientLoginInput{
+		Username:      "alice",
+		Password:      "correct horse battery staple",
+		DeviceID:      "device_alice_01",
+		ClientVersion: "1.0.0",
+	})
+	if err != nil {
+		t.Fatalf("alice login: %v", err)
+	}
+
+	resolved, err := service.ResolveProxyRequest(ctx, auth.ResolveProxyRequestInput{
+		AccessToken: aliceLogin.AccessToken,
+		ServiceKey:  "gitlab",
+	})
+	if err != nil {
+		t.Fatalf("resolve proxy request: %v", err)
+	}
+
+	if resolved.ServiceID != "service_gitlab" {
+		t.Fatalf("expected service_gitlab, got %q", resolved.ServiceID)
+	}
+	if resolved.UpstreamURL != "http://gitlab:8080" {
+		t.Fatalf("expected upstream url http://gitlab:8080, got %q", resolved.UpstreamURL)
+	}
+	if resolved.AccessSource != "role" {
+		t.Fatalf("expected role access source, got %q", resolved.AccessSource)
+	}
+
+	bobLogin, err := service.ClientLogin(ctx, auth.ClientLoginInput{
+		Username:      "bob",
+		Password:      "correct horse battery staple",
+		DeviceID:      "device_bob_01",
+		ClientVersion: "1.0.0",
+	})
+	if err != nil {
+		t.Fatalf("bob login: %v", err)
+	}
+
+	if _, err := service.ResolveProxyRequest(ctx, auth.ResolveProxyRequestInput{
+		AccessToken: bobLogin.AccessToken,
+		ServiceKey:  "jenkins",
+	}); err == nil {
+		t.Fatal("expected deny override to block proxy request")
+	}
+}
+
+func TestServiceResolveProxyRequestRejectsDisabledServiceUserAndDevice(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	dsn := createTestDatabase(t, ctx)
+	if err := database.MigrateUp(ctx, dsn); err != nil {
+		t.Fatalf("migrate up: %v", err)
+	}
+
+	db := openDB(t, dsn)
+	now := time.Date(2026, time.April, 17, 13, 30, 0, 0, time.UTC)
+	sessionCounter := 0
+	service := auth.Service{
+		DB:              db,
+		PasswordHasher:  auth.DefaultPasswordHasher(),
+		TokenIssuer:     auth.TokenIssuer{Secret: []byte("0123456789abcdef0123456789abcdef"), TTL: 15 * time.Minute, Now: func() time.Time { return now }},
+		Now:             func() time.Time { return now },
+		RefreshTokenTTL: 7 * 24 * time.Hour,
+		SessionIDFactory: func() (string, error) {
+			sessionCounter++
+			return fmt.Sprintf("session_proxy_status_%02d", sessionCounter), nil
+		},
+	}
+
+	insertUserWithRoles(t, ctx, db, "user_alice", "alice", "Alice", "correct horse battery staple", []roleSeed{{id: "role_developer", name: "developer", displayName: "Developer"}})
+	insertService(t, ctx, db, "service_gitlab", "gitlab", "GitLab", "engineering", "/s/gitlab", "enabled")
+	insertRoleService(t, ctx, db, "role_developer", "service_gitlab")
+	insertDevice(t, ctx, db, "device_alice_01", "user_alice", "trusted")
+
+	loginResult, err := service.ClientLogin(ctx, auth.ClientLoginInput{
+		Username:      "alice",
+		Password:      "correct horse battery staple",
+		DeviceID:      "device_alice_01",
+		ClientVersion: "1.0.0",
+	})
+	if err != nil {
+		t.Fatalf("alice login: %v", err)
+	}
+
+	if _, err := db.ExecContext(ctx, `UPDATE services SET status = 'disabled' WHERE id = 'service_gitlab'`); err != nil {
+		t.Fatalf("disable service: %v", err)
+	}
+	if _, err := service.ResolveProxyRequest(ctx, auth.ResolveProxyRequestInput{
+		AccessToken: loginResult.AccessToken,
+		RequestID:   "req_service_disabled",
+		ServiceKey:  "gitlab",
+	}); err == nil {
+		t.Fatal("expected disabled service to be rejected")
+	}
+	assertAuditEventCountByRequest(t, ctx, db, "req_service_disabled", 1)
+
+	if _, err := db.ExecContext(ctx, `UPDATE services SET status = 'enabled' WHERE id = 'service_gitlab'`); err != nil {
+		t.Fatalf("enable service: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `UPDATE users SET status = 'disabled' WHERE id = 'user_alice'`); err != nil {
+		t.Fatalf("disable user: %v", err)
+	}
+	if _, err := service.ResolveProxyRequest(ctx, auth.ResolveProxyRequestInput{
+		AccessToken: loginResult.AccessToken,
+		RequestID:   "req_user_disabled",
+		ServiceKey:  "gitlab",
+	}); err == nil {
+		t.Fatal("expected disabled user to be rejected")
+	}
+
+	if _, err := db.ExecContext(ctx, `UPDATE users SET status = 'enabled' WHERE id = 'user_alice'`); err != nil {
+		t.Fatalf("enable user: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `UPDATE devices SET status = 'disabled' WHERE id = 'device_alice_01'`); err != nil {
+		t.Fatalf("disable device: %v", err)
+	}
+	if _, err := service.ResolveProxyRequest(ctx, auth.ResolveProxyRequestInput{
+		AccessToken: loginResult.AccessToken,
+		RequestID:   "req_device_disabled",
+		ServiceKey:  "gitlab",
+	}); err == nil {
+		t.Fatal("expected disabled device to be rejected")
+	}
+}
+
 func TestServiceAdminUserListCreateAndUpdate(t *testing.T) {
 	t.Parallel()
 
@@ -732,6 +896,216 @@ func TestServiceAdminUserListCreateAndUpdate(t *testing.T) {
 	if list.Items[0].ID != "user_created_01" {
 		t.Fatalf("expected created user in list, got %q", list.Items[0].ID)
 	}
+}
+
+func TestServiceAdminRoleServiceDeviceAuditAndOverrideManagement(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	dsn := createTestDatabase(t, ctx)
+	if err := database.MigrateUp(ctx, dsn); err != nil {
+		t.Fatalf("migrate up: %v", err)
+	}
+
+	db := openDB(t, dsn)
+	now := time.Date(2026, time.April, 17, 13, 30, 0, 0, time.UTC)
+	service := auth.Service{
+		DB:              db,
+		PasswordHasher:  auth.DefaultPasswordHasher(),
+		TokenIssuer:     auth.TokenIssuer{Secret: []byte("0123456789abcdef0123456789abcdef"), TTL: 15 * time.Minute, Now: func() time.Time { return now }},
+		Now:             func() time.Time { return now },
+		RefreshTokenTTL: 7 * 24 * time.Hour,
+		SessionIDFactory: func() (string, error) {
+			return "session_admin_cfg_01", nil
+		},
+		RoleIDFactory: func() (string, error) {
+			return "role_created_01", nil
+		},
+		ServiceIDFactory: func() (string, error) {
+			return "service_created_01", nil
+		},
+	}
+
+	insertUserWithRoles(t, ctx, db, "user_admin", "admin", "Administrator", "correct horse battery staple", []roleSeed{{id: "role_admin", name: "admin", displayName: "Administrator"}})
+	insertUserWithRoles(t, ctx, db, "user_alice", "alice", "Alice", "correct horse battery staple", []roleSeed{{id: "role_developer", name: "developer", displayName: "Developer"}})
+	insertDevice(t, ctx, db, "device_alice_admin_01", "user_alice", "trusted")
+	insertService(t, ctx, db, "service_docs", "docs", "Docs", "shared", "/s/docs", "enabled")
+	insertService(t, ctx, db, "service_gitlab", "gitlab", "GitLab", "engineering", "/s/gitlab", "enabled")
+	insertAuditEvent(t, ctx, db, "audit_01", "auth.login.succeeded", "user_admin", "user", "user_admin", "", "success")
+
+	loginResult, err := service.AdminLogin(ctx, auth.AdminLoginInput{
+		Username: "admin",
+		Password: "correct horse battery staple",
+	})
+	if err != nil {
+		t.Fatalf("admin login: %v", err)
+	}
+
+	roles, err := service.ListAdminRoles(ctx, auth.ListAdminRolesInput{
+		AccessToken: loginResult.AccessToken,
+		Page:        1,
+		PageSize:    20,
+		Keyword:     "admin",
+	})
+	if err != nil {
+		t.Fatalf("list admin roles: %v", err)
+	}
+	if roles.Pagination.Total != 1 {
+		t.Fatalf("expected 1 role in filtered list, got %d", roles.Pagination.Total)
+	}
+
+	createdRole, err := service.CreateAdminRole(ctx, auth.CreateAdminRoleInput{
+		AccessToken: loginResult.AccessToken,
+		Name:        "ops",
+		DisplayName: "Operations",
+		Description: "Ops team",
+	})
+	if err != nil {
+		t.Fatalf("create admin role: %v", err)
+	}
+	if createdRole.ID != "role_created_01" {
+		t.Fatalf("expected role_created_01, got %q", createdRole.ID)
+	}
+
+	services, err := service.ListAdminServices(ctx, auth.ListAdminServicesInput{
+		AccessToken: loginResult.AccessToken,
+		Page:        1,
+		PageSize:    20,
+		Group:       "shared",
+	})
+	if err != nil {
+		t.Fatalf("list admin services: %v", err)
+	}
+	if services.Pagination.Total != 1 {
+		t.Fatalf("expected 1 shared service, got %d", services.Pagination.Total)
+	}
+
+	createdService, err := service.CreateAdminService(ctx, auth.CreateAdminServiceInput{
+		AccessToken: loginResult.AccessToken,
+		Key:         "jenkins",
+		Name:        "Jenkins",
+		Description: "CI server",
+		Group:       "operations",
+		Protocol:    "http",
+		UpstreamURL: "http://jenkins:8080",
+		PublicPath:  "/s/jenkins",
+		Enabled:     true,
+	})
+	if err != nil {
+		t.Fatalf("create admin service: %v", err)
+	}
+	if createdService.ID != "service_created_01" {
+		t.Fatalf("expected service_created_01, got %q", createdService.ID)
+	}
+
+	devices, err := service.ListAdminDevices(ctx, auth.ListAdminDevicesInput{
+		AccessToken: loginResult.AccessToken,
+		Page:        1,
+		PageSize:    20,
+		UserID:      "user_alice",
+	})
+	if err != nil {
+		t.Fatalf("list admin devices: %v", err)
+	}
+	if devices.Pagination.Total != 1 {
+		t.Fatalf("expected 1 device for alice, got %d", devices.Pagination.Total)
+	}
+
+	audits, err := service.ListAdminAuditEvents(ctx, auth.ListAdminAuditEventsInput{
+		AccessToken: loginResult.AccessToken,
+		Page:        1,
+		PageSize:    20,
+		Type:        "auth.login.succeeded",
+	})
+	if err != nil {
+		t.Fatalf("list admin audit events: %v", err)
+	}
+	if audits.Pagination.Total != 2 {
+		t.Fatalf("expected 2 audit events, got %d", audits.Pagination.Total)
+	}
+
+	if err := service.ReplaceRoleServices(ctx, auth.ReplaceRoleServicesInput{
+		AccessToken: loginResult.AccessToken,
+		RoleID:      "role_created_01",
+		ServiceIDs:  []string{"service_docs", "service_gitlab"},
+	}); err != nil {
+		t.Fatalf("replace role services: %v", err)
+	}
+	assertRoleServices(t, ctx, db, "role_created_01", []string{"service_docs", "service_gitlab"})
+
+	overrides, err := service.ReplaceUserServiceOverrides(ctx, auth.ReplaceUserServiceOverridesInput{
+		AccessToken:     loginResult.AccessToken,
+		UserID:          "user_alice",
+		AllowServiceIDs: []string{"service_docs"},
+		DenyServiceIDs:  []string{"service_gitlab"},
+	})
+	if err != nil {
+		t.Fatalf("replace user service overrides: %v", err)
+	}
+	if len(overrides) != 2 {
+		t.Fatalf("expected 2 overrides, got %d", len(overrides))
+	}
+	assertUserServiceOverrides(t, ctx, db, "user_alice", map[string]string{
+		"service_docs":   "allow",
+		"service_gitlab": "deny",
+	})
+}
+
+func TestServiceWritesAuditEventsForKeyActions(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	dsn := createTestDatabase(t, ctx)
+	if err := database.MigrateUp(ctx, dsn); err != nil {
+		t.Fatalf("migrate up: %v", err)
+	}
+
+	db := openDB(t, dsn)
+	now := time.Date(2026, time.April, 17, 13, 30, 0, 0, time.UTC)
+	service := auth.Service{
+		DB:              db,
+		PasswordHasher:  auth.DefaultPasswordHasher(),
+		TokenIssuer:     auth.TokenIssuer{Secret: []byte("0123456789abcdef0123456789abcdef"), TTL: 15 * time.Minute, Now: func() time.Time { return now }},
+		Now:             func() time.Time { return now },
+		RefreshTokenTTL: 7 * 24 * time.Hour,
+		SessionIDFactory: func() (string, error) {
+			return "session_audit_01", nil
+		},
+		UserIDFactory: func() (string, error) {
+			return "user_audit_created_01", nil
+		},
+	}
+
+	insertUserWithRoles(t, ctx, db, "user_admin", "admin", "Administrator", "correct horse battery staple", []roleSeed{{id: "role_admin", name: "admin", displayName: "Administrator"}})
+	insertRole(t, ctx, db, roleSeed{id: "role_developer", name: "developer", displayName: "Developer"})
+
+	loginResult, err := service.AdminLogin(ctx, auth.AdminLoginInput{
+		Username:  "admin",
+		Password:  "correct horse battery staple",
+		RequestID: "req_audit_login",
+	})
+	if err != nil {
+		t.Fatalf("admin login: %v", err)
+	}
+
+	if _, err := service.CreateAdminUser(ctx, auth.CreateAdminUserInput{
+		AccessToken: loginResult.AccessToken,
+		RequestID:   "req_audit_user_create",
+		Username:    "delta",
+		DisplayName: "Delta",
+		Email:       "delta@example.com",
+		Password:    "ChangeMe123!",
+		RoleIDs:     []string{"role_developer"},
+	}); err != nil {
+		t.Fatalf("create admin user: %v", err)
+	}
+
+	assertAuditEventCountByRequest(t, ctx, db, "req_audit_login", 1)
+	assertAuditEventCountByRequest(t, ctx, db, "req_audit_user_create", 1)
 }
 
 type roleSeed struct {
@@ -871,6 +1245,102 @@ func insertUserServiceOverride(t *testing.T, ctx context.Context, db *sql.DB, us
 		effect,
 	); err != nil {
 		t.Fatalf("insert user service override: %v", err)
+	}
+}
+
+func insertAuditEvent(t *testing.T, ctx context.Context, db *sql.DB, id string, eventType string, actorUserID string, targetType string, targetID string, serviceID string, result string) {
+	t.Helper()
+
+	var nullableServiceID any
+	if serviceID == "" {
+		nullableServiceID = nil
+	} else {
+		nullableServiceID = serviceID
+	}
+
+	if _, err := db.ExecContext(
+		ctx,
+		`INSERT INTO audit_events (id, request_id, type, actor_user_id, target_type, target_id, service_id, result, summary)
+		VALUES ($1, 'req_test', $2, $3, $4, $5, $6, $7, 'test audit')`,
+		id,
+		eventType,
+		actorUserID,
+		targetType,
+		targetID,
+		nullableServiceID,
+		result,
+	); err != nil {
+		t.Fatalf("insert audit event: %v", err)
+	}
+}
+
+func assertRoleServices(t *testing.T, ctx context.Context, db *sql.DB, roleID string, expected []string) {
+	t.Helper()
+
+	rows, err := db.QueryContext(ctx, `SELECT service_id FROM role_services WHERE role_id = $1 ORDER BY service_id ASC`, roleID)
+	if err != nil {
+		t.Fatalf("query role services: %v", err)
+	}
+	defer rows.Close()
+
+	var actual []string
+	for rows.Next() {
+		var serviceID string
+		if err := rows.Scan(&serviceID); err != nil {
+			t.Fatalf("scan role service: %v", err)
+		}
+		actual = append(actual, serviceID)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("iterate role services: %v", err)
+	}
+
+	if strings.Join(actual, ",") != strings.Join(expected, ",") {
+		t.Fatalf("expected role services %#v, got %#v", expected, actual)
+	}
+}
+
+func assertUserServiceOverrides(t *testing.T, ctx context.Context, db *sql.DB, userID string, expected map[string]string) {
+	t.Helper()
+
+	rows, err := db.QueryContext(ctx, `SELECT service_id, effect FROM user_service_overrides WHERE user_id = $1`, userID)
+	if err != nil {
+		t.Fatalf("query user service overrides: %v", err)
+	}
+	defer rows.Close()
+
+	actual := map[string]string{}
+	for rows.Next() {
+		var serviceID string
+		var effect string
+		if err := rows.Scan(&serviceID, &effect); err != nil {
+			t.Fatalf("scan user service override: %v", err)
+		}
+		actual[serviceID] = effect
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("iterate user service overrides: %v", err)
+	}
+
+	if len(actual) != len(expected) {
+		t.Fatalf("expected overrides %#v, got %#v", expected, actual)
+	}
+	for serviceID, effect := range expected {
+		if actual[serviceID] != effect {
+			t.Fatalf("expected override %s=%s, got %s", serviceID, effect, actual[serviceID])
+		}
+	}
+}
+
+func assertAuditEventCountByRequest(t *testing.T, ctx context.Context, db *sql.DB, requestID string, expected int) {
+	t.Helper()
+
+	var count int
+	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM audit_events WHERE request_id = $1`, requestID).Scan(&count); err != nil {
+		t.Fatalf("count audit events by request: %v", err)
+	}
+	if count != expected {
+		t.Fatalf("expected %d audit events for %s, got %d", expected, requestID, count)
 	}
 }
 

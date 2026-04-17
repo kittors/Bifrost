@@ -29,12 +29,15 @@ type Service struct {
 	DeviceIDFactory    func() (string, error)
 	ChallengeIDFactory func() (string, error)
 	UserIDFactory      func() (string, error)
+	RoleIDFactory      func() (string, error)
+	ServiceIDFactory   func() (string, error)
 	ChallengeTTL       time.Duration
 }
 
 type AdminLoginInput struct {
-	Username string
-	Password string
+	Username  string
+	Password  string
+	RequestID string
 }
 
 type ClientLoginInput struct {
@@ -93,6 +96,22 @@ type CreateServiceAccessURLInput struct {
 	ServiceID   string
 }
 
+type ResolveProxyRequestInput struct {
+	AccessToken string
+	RequestID   string
+	ServiceKey  string
+}
+
+type RecordProxyAccessEventInput struct {
+	RequestID string
+	Type      contracts.AuditEventType
+	UserID    string
+	DeviceID  string
+	ServiceID string
+	Result    string
+	Summary   string
+}
+
 type ListAdminUsersInput struct {
 	AccessToken string
 	Page        int
@@ -104,6 +123,7 @@ type ListAdminUsersInput struct {
 
 type CreateAdminUserInput struct {
 	AccessToken string
+	RequestID   string
 	Username    string
 	DisplayName string
 	Email       string
@@ -117,6 +137,75 @@ type UpdateAdminUserInput struct {
 	DisplayName string
 	Email       string
 	RoleIDs     []string
+}
+
+type ListAdminRolesInput struct {
+	AccessToken string
+	Page        int
+	PageSize    int
+	Keyword     string
+}
+
+type CreateAdminRoleInput struct {
+	AccessToken string
+	Name        string
+	DisplayName string
+	Description string
+}
+
+type ListAdminServicesInput struct {
+	AccessToken string
+	Page        int
+	PageSize    int
+	Keyword     string
+	Status      string
+	Group       string
+}
+
+type CreateAdminServiceInput struct {
+	AccessToken string
+	Key         string
+	Name        string
+	Description string
+	Group       string
+	Protocol    string
+	UpstreamURL string
+	PublicPath  string
+	Enabled     bool
+}
+
+type ListAdminDevicesInput struct {
+	AccessToken string
+	Page        int
+	PageSize    int
+	Keyword     string
+	Status      string
+	UserID      string
+}
+
+type ListAdminAuditEventsInput struct {
+	AccessToken string
+	Page        int
+	PageSize    int
+	Type        string
+	ActorUserID string
+	TargetType  string
+	TargetID    string
+	ServiceID   string
+	Result      string
+}
+
+type ReplaceRoleServicesInput struct {
+	AccessToken string
+	RoleID      string
+	ServiceIDs  []string
+}
+
+type ReplaceUserServiceOverridesInput struct {
+	AccessToken     string
+	UserID          string
+	AllowServiceIDs []string
+	DenyServiceIDs  []string
 }
 
 type LoginResult struct {
@@ -164,6 +253,17 @@ type ServiceAccessURLResult struct {
 	ExpiresIn  int
 }
 
+type ResolveProxyRequestResult struct {
+	ServiceID    string
+	ServiceKey   string
+	ServiceName  string
+	PublicPath   string
+	UpstreamURL  string
+	UserID       string
+	DeviceID     string
+	AccessSource string
+}
+
 type AdminUser struct {
 	ID          string
 	Username    string
@@ -176,6 +276,84 @@ type AdminUser struct {
 type AdminUserListResult struct {
 	Items      []AdminUser
 	Pagination contracts.Pagination
+}
+
+type AdminRole struct {
+	ID          string
+	Name        string
+	DisplayName string
+	Description string
+}
+
+type AdminRoleListResult struct {
+	Items      []AdminRole
+	Pagination contracts.Pagination
+}
+
+type AdminService struct {
+	ID          string
+	Key         string
+	Name        string
+	Description string
+	Group       string
+	Protocol    string
+	UpstreamURL string
+	PublicPath  string
+	Status      string
+}
+
+type AdminServiceListResult struct {
+	Items      []AdminService
+	Pagination contracts.Pagination
+}
+
+type AdminDevice struct {
+	ID                   string
+	UserID               string
+	UserUsername         string
+	Name                 string
+	OS                   string
+	ClientVersion        string
+	PublicKeyFingerprint string
+	Status               string
+}
+
+type AdminDeviceListResult struct {
+	Items      []AdminDevice
+	Pagination contracts.Pagination
+}
+
+type AdminAuditEvent struct {
+	ID          string
+	RequestID   string
+	Type        string
+	ActorUserID string
+	TargetType  string
+	TargetID    string
+	ServiceID   string
+	Result      string
+	Summary     string
+}
+
+type AdminAuditEventListResult struct {
+	Items      []AdminAuditEvent
+	Pagination contracts.Pagination
+}
+
+type UserServiceOverride struct {
+	ServiceID string
+	Effect    string
+}
+
+type auditEventInput struct {
+	RequestID   string
+	Type        contracts.AuditEventType
+	ActorUserID string
+	TargetType  string
+	TargetID    string
+	ServiceID   string
+	Result      string
+	Summary     string
 }
 
 type ServiceError struct {
@@ -204,7 +382,24 @@ func (s Service) AdminLogin(ctx context.Context, input AdminLoginInput) (LoginRe
 		}
 	}
 
-	return s.createSession(ctx, user, nil)
+	result, err := s.createSession(ctx, user, nil)
+	if err != nil {
+		return LoginResult{}, err
+	}
+
+	if err := s.recordAuditEvent(ctx, auditEventInput{
+		RequestID:   input.RequestID,
+		Type:        contracts.AuditEventTypeAuthLoginSucceeded,
+		ActorUserID: user.ID,
+		TargetType:  "user",
+		TargetID:    user.ID,
+		Result:      "success",
+		Summary:     "admin login succeeded",
+	}); err != nil {
+		return LoginResult{}, err
+	}
+
+	return result, nil
 }
 
 func (s Service) ClientLogin(ctx context.Context, input ClientLoginInput) (LoginResult, error) {
@@ -605,6 +800,100 @@ func (s Service) CreateServiceAccessURL(ctx context.Context, input CreateService
 	}, nil
 }
 
+func (s Service) ResolveProxyRequest(ctx context.Context, input ResolveProxyRequestInput) (ResolveProxyRequestResult, error) {
+	principal, err := s.loadClientPrincipal(ctx, input.AccessToken)
+	if err != nil {
+		return ResolveProxyRequestResult{}, err
+	}
+
+	service, err := s.loadProxyServiceByKey(ctx, input.ServiceKey)
+	if err != nil {
+		return ResolveProxyRequestResult{}, err
+	}
+
+	if service.Status != "enabled" {
+		if err := s.RecordProxyAccessEvent(ctx, RecordProxyAccessEventInput{
+			RequestID: input.RequestID,
+			Type:      contracts.AuditEventTypeServiceAccessDenied,
+			UserID:    principal.User.ID,
+			DeviceID:  principal.Claims.DeviceID,
+			ServiceID: service.ID,
+			Result:    "failure",
+			Summary:   "service is disabled",
+		}); err != nil {
+			return ResolveProxyRequestResult{}, err
+		}
+		return ResolveProxyRequestResult{}, &ServiceError{
+			StatusCode:  http.StatusForbidden,
+			Code:        contracts.ErrorCodeServiceDisabled,
+			Message:     "service is disabled",
+			UserMessage: "服务当前不可用",
+		}
+	}
+
+	if strings.TrimSpace(service.UpstreamURL) == "" {
+		return ResolveProxyRequestResult{}, &ServiceError{
+			StatusCode:  http.StatusBadGateway,
+			Code:        contracts.ErrorCodeServiceUpstreamInvalid,
+			Message:     "service upstream url is empty",
+			UserMessage: "服务暂时不可用，请稍后再试",
+		}
+	}
+
+	accessSource, allowed, err := s.resolveServiceAccess(ctx, principal.User.ID, principal.User.RoleIDs, service.ID)
+	if err != nil {
+		return ResolveProxyRequestResult{}, err
+	}
+	if !allowed {
+		if err := s.RecordProxyAccessEvent(ctx, RecordProxyAccessEventInput{
+			RequestID: input.RequestID,
+			Type:      contracts.AuditEventTypeServiceAccessDenied,
+			UserID:    principal.User.ID,
+			DeviceID:  principal.Claims.DeviceID,
+			ServiceID: service.ID,
+			Result:    "failure",
+			Summary:   "service access denied",
+		}); err != nil {
+			return ResolveProxyRequestResult{}, err
+		}
+		return ResolveProxyRequestResult{}, &ServiceError{
+			StatusCode:  http.StatusForbidden,
+			Code:        contracts.ErrorCodePolicyAccessDenied,
+			Message:     "user is not allowed to access service",
+			UserMessage: "你没有访问该服务的权限",
+		}
+	}
+
+	return ResolveProxyRequestResult{
+		ServiceID:    service.ID,
+		ServiceKey:   service.Key,
+		ServiceName:  service.Name,
+		PublicPath:   service.PublicPath,
+		UpstreamURL:  service.UpstreamURL,
+		UserID:       principal.User.ID,
+		DeviceID:     principal.Claims.DeviceID,
+		AccessSource: accessSource,
+	}, nil
+}
+
+func (s Service) RecordProxyAccessEvent(ctx context.Context, input RecordProxyAccessEventInput) error {
+	summary := strings.TrimSpace(input.Summary)
+	if summary == "" {
+		summary = "service access event"
+	}
+
+	return s.recordAuditEvent(ctx, auditEventInput{
+		RequestID:   input.RequestID,
+		Type:        input.Type,
+		ActorUserID: input.UserID,
+		TargetType:  "service",
+		TargetID:    input.ServiceID,
+		ServiceID:   input.ServiceID,
+		Result:      input.Result,
+		Summary:     summary,
+	})
+}
+
 func (s Service) ListAdminUsers(ctx context.Context, input ListAdminUsersInput) (AdminUserListResult, error) {
 	if _, err := s.ensureAdminPrincipal(ctx, input.AccessToken); err != nil {
 		return AdminUserListResult{}, err
@@ -659,7 +948,8 @@ func (s Service) ListAdminUsers(ctx context.Context, input ListAdminUsersInput) 
 }
 
 func (s Service) CreateAdminUser(ctx context.Context, input CreateAdminUserInput) (AdminUser, error) {
-	if _, err := s.ensureAdminPrincipal(ctx, input.AccessToken); err != nil {
+	principal, err := s.ensureAdminPrincipal(ctx, input.AccessToken)
+	if err != nil {
 		return AdminUser{}, err
 	}
 
@@ -717,6 +1007,18 @@ func (s Service) CreateAdminUser(ctx context.Context, input CreateAdminUserInput
 		return AdminUser{}, fmt.Errorf("commit create user transaction: %w", err)
 	}
 
+	if err := s.recordAuditEvent(ctx, auditEventInput{
+		RequestID:   input.RequestID,
+		Type:        contracts.AuditEventTypeAdminUserCreated,
+		ActorUserID: principal.User.ID,
+		TargetType:  "user",
+		TargetID:    userID,
+		Result:      "success",
+		Summary:     "admin user created",
+	}); err != nil {
+		return AdminUser{}, err
+	}
+
 	return s.loadAdminUser(ctx, userID)
 }
 
@@ -766,6 +1068,229 @@ func (s Service) UpdateAdminUser(ctx context.Context, input UpdateAdminUserInput
 	}
 
 	return s.loadAdminUser(ctx, input.UserID)
+}
+
+func (s Service) ListAdminRoles(ctx context.Context, input ListAdminRolesInput) (AdminRoleListResult, error) {
+	if _, err := s.ensureAdminPrincipal(ctx, input.AccessToken); err != nil {
+		return AdminRoleListResult{}, err
+	}
+	page, pageSize := normalizePagination(input.Page, input.PageSize)
+	where, args := buildSimpleKeywordFilter("r", []string{"name", "display_name", "description"}, input.Keyword, "")
+	var total int64
+	if err := s.db().QueryRowContext(ctx, "SELECT COUNT(*) FROM roles r "+where, args...).Scan(&total); err != nil {
+		return AdminRoleListResult{}, fmt.Errorf("count roles: %w", err)
+	}
+	queryArgs := append([]any{}, args...)
+	queryArgs = append(queryArgs, pageSize, (page-1)*pageSize)
+	query := `SELECT id, name, display_name, description FROM roles r ` + where + fmt.Sprintf(" ORDER BY name ASC LIMIT $%d OFFSET $%d", len(queryArgs)-1, len(queryArgs))
+	rows, err := s.db().QueryContext(ctx, query, queryArgs...)
+	if err != nil {
+		return AdminRoleListResult{}, fmt.Errorf("query roles: %w", err)
+	}
+	defer rows.Close()
+	items := []AdminRole{}
+	for rows.Next() {
+		var role AdminRole
+		if err := rows.Scan(&role.ID, &role.Name, &role.DisplayName, &role.Description); err != nil {
+			return AdminRoleListResult{}, fmt.Errorf("scan role: %w", err)
+		}
+		items = append(items, role)
+	}
+	if err := rows.Err(); err != nil {
+		return AdminRoleListResult{}, fmt.Errorf("iterate roles: %w", err)
+	}
+	return AdminRoleListResult{Items: items, Pagination: contracts.Pagination{Page: int64(page), PageSize: int64(pageSize), Total: total, TotalPages: totalPages(total, pageSize)}}, nil
+}
+
+func (s Service) CreateAdminRole(ctx context.Context, input CreateAdminRoleInput) (AdminRole, error) {
+	if _, err := s.ensureAdminPrincipal(ctx, input.AccessToken); err != nil {
+		return AdminRole{}, err
+	}
+	roleID, err := s.newRoleID()
+	if err != nil {
+		return AdminRole{}, err
+	}
+	if _, err := s.db().ExecContext(ctx, `INSERT INTO roles (id, name, display_name, description, is_system) VALUES ($1, $2, $3, $4, false)`, roleID, input.Name, input.DisplayName, input.Description); err != nil {
+		if isUniqueViolation(err) {
+			return AdminRole{}, &ServiceError{StatusCode: http.StatusConflict, Code: contracts.ErrorCodeRoleAlreadyExists, Message: "role already exists", UserMessage: "角色已存在"}
+		}
+		return AdminRole{}, fmt.Errorf("insert role: %w", err)
+	}
+	return AdminRole{ID: roleID, Name: input.Name, DisplayName: input.DisplayName, Description: input.Description}, nil
+}
+
+func (s Service) ListAdminServices(ctx context.Context, input ListAdminServicesInput) (AdminServiceListResult, error) {
+	if _, err := s.ensureAdminPrincipal(ctx, input.AccessToken); err != nil {
+		return AdminServiceListResult{}, err
+	}
+	page, pageSize := normalizePagination(input.Page, input.PageSize)
+	where, args := buildAdminServiceFilters(input)
+	var total int64
+	if err := s.db().QueryRowContext(ctx, "SELECT COUNT(*) FROM services s "+where, args...).Scan(&total); err != nil {
+		return AdminServiceListResult{}, fmt.Errorf("count services: %w", err)
+	}
+	queryArgs := append([]any{}, args...)
+	queryArgs = append(queryArgs, pageSize, (page-1)*pageSize)
+	query := `SELECT id, key, name, description, group_name, protocol, upstream_url, public_path, status FROM services s ` + where + fmt.Sprintf(" ORDER BY name ASC LIMIT $%d OFFSET $%d", len(queryArgs)-1, len(queryArgs))
+	rows, err := s.db().QueryContext(ctx, query, queryArgs...)
+	if err != nil {
+		return AdminServiceListResult{}, fmt.Errorf("query admin services: %w", err)
+	}
+	defer rows.Close()
+	items := []AdminService{}
+	for rows.Next() {
+		var service AdminService
+		if err := rows.Scan(&service.ID, &service.Key, &service.Name, &service.Description, &service.Group, &service.Protocol, &service.UpstreamURL, &service.PublicPath, &service.Status); err != nil {
+			return AdminServiceListResult{}, fmt.Errorf("scan admin service: %w", err)
+		}
+		items = append(items, service)
+	}
+	if err := rows.Err(); err != nil {
+		return AdminServiceListResult{}, fmt.Errorf("iterate admin services: %w", err)
+	}
+	return AdminServiceListResult{Items: items, Pagination: contracts.Pagination{Page: int64(page), PageSize: int64(pageSize), Total: total, TotalPages: totalPages(total, pageSize)}}, nil
+}
+
+func (s Service) CreateAdminService(ctx context.Context, input CreateAdminServiceInput) (AdminService, error) {
+	if _, err := s.ensureAdminPrincipal(ctx, input.AccessToken); err != nil {
+		return AdminService{}, err
+	}
+	serviceID, err := s.newServiceID()
+	if err != nil {
+		return AdminService{}, err
+	}
+	status := "disabled"
+	if input.Enabled {
+		status = "enabled"
+	}
+	if _, err := s.db().ExecContext(ctx, `INSERT INTO services (id, key, name, description, group_name, protocol, upstream_url, public_path, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`, serviceID, input.Key, input.Name, input.Description, input.Group, input.Protocol, input.UpstreamURL, input.PublicPath, status); err != nil {
+		if isUniqueViolation(err) {
+			return AdminService{}, &ServiceError{StatusCode: http.StatusConflict, Code: contracts.ErrorCodeServiceAlreadyExists, Message: "service already exists", UserMessage: "服务已存在"}
+		}
+		return AdminService{}, fmt.Errorf("insert service: %w", err)
+	}
+	return AdminService{ID: serviceID, Key: input.Key, Name: input.Name, Description: input.Description, Group: input.Group, Protocol: input.Protocol, UpstreamURL: input.UpstreamURL, PublicPath: input.PublicPath, Status: status}, nil
+}
+
+func (s Service) ListAdminDevices(ctx context.Context, input ListAdminDevicesInput) (AdminDeviceListResult, error) {
+	if _, err := s.ensureAdminPrincipal(ctx, input.AccessToken); err != nil {
+		return AdminDeviceListResult{}, err
+	}
+	page, pageSize := normalizePagination(input.Page, input.PageSize)
+	where, args := buildAdminDeviceFilters(input)
+	var total int64
+	if err := s.db().QueryRowContext(ctx, "SELECT COUNT(*) FROM devices d INNER JOIN users u ON u.id = d.user_id "+where, args...).Scan(&total); err != nil {
+		return AdminDeviceListResult{}, fmt.Errorf("count devices: %w", err)
+	}
+	queryArgs := append([]any{}, args...)
+	queryArgs = append(queryArgs, pageSize, (page-1)*pageSize)
+	query := `SELECT d.id, d.user_id, u.username, d.name, d.os, d.client_version, d.public_key_fingerprint, d.status
+		FROM devices d INNER JOIN users u ON u.id = d.user_id ` + where + fmt.Sprintf(" ORDER BY d.created_at DESC LIMIT $%d OFFSET $%d", len(queryArgs)-1, len(queryArgs))
+	rows, err := s.db().QueryContext(ctx, query, queryArgs...)
+	if err != nil {
+		return AdminDeviceListResult{}, fmt.Errorf("query admin devices: %w", err)
+	}
+	defer rows.Close()
+	items := []AdminDevice{}
+	for rows.Next() {
+		var device AdminDevice
+		if err := rows.Scan(&device.ID, &device.UserID, &device.UserUsername, &device.Name, &device.OS, &device.ClientVersion, &device.PublicKeyFingerprint, &device.Status); err != nil {
+			return AdminDeviceListResult{}, fmt.Errorf("scan admin device: %w", err)
+		}
+		items = append(items, device)
+	}
+	if err := rows.Err(); err != nil {
+		return AdminDeviceListResult{}, fmt.Errorf("iterate admin devices: %w", err)
+	}
+	return AdminDeviceListResult{Items: items, Pagination: contracts.Pagination{Page: int64(page), PageSize: int64(pageSize), Total: total, TotalPages: totalPages(total, pageSize)}}, nil
+}
+
+func (s Service) ListAdminAuditEvents(ctx context.Context, input ListAdminAuditEventsInput) (AdminAuditEventListResult, error) {
+	if _, err := s.ensureAdminPrincipal(ctx, input.AccessToken); err != nil {
+		return AdminAuditEventListResult{}, err
+	}
+	page, pageSize := normalizePagination(input.Page, input.PageSize)
+	where, args := buildAdminAuditFilters(input)
+	var total int64
+	if err := s.db().QueryRowContext(ctx, "SELECT COUNT(*) FROM audit_events a "+where, args...).Scan(&total); err != nil {
+		return AdminAuditEventListResult{}, fmt.Errorf("count audit events: %w", err)
+	}
+	queryArgs := append([]any{}, args...)
+	queryArgs = append(queryArgs, pageSize, (page-1)*pageSize)
+	query := `SELECT id, request_id, type, COALESCE(actor_user_id, ''), target_type, COALESCE(target_id, ''), COALESCE(service_id, ''), result, summary
+		FROM audit_events a ` + where + fmt.Sprintf(" ORDER BY occurred_at DESC LIMIT $%d OFFSET $%d", len(queryArgs)-1, len(queryArgs))
+	rows, err := s.db().QueryContext(ctx, query, queryArgs...)
+	if err != nil {
+		return AdminAuditEventListResult{}, fmt.Errorf("query audit events: %w", err)
+	}
+	defer rows.Close()
+	items := []AdminAuditEvent{}
+	for rows.Next() {
+		var event AdminAuditEvent
+		if err := rows.Scan(&event.ID, &event.RequestID, &event.Type, &event.ActorUserID, &event.TargetType, &event.TargetID, &event.ServiceID, &event.Result, &event.Summary); err != nil {
+			return AdminAuditEventListResult{}, fmt.Errorf("scan audit event: %w", err)
+		}
+		items = append(items, event)
+	}
+	if err := rows.Err(); err != nil {
+		return AdminAuditEventListResult{}, fmt.Errorf("iterate audit events: %w", err)
+	}
+	return AdminAuditEventListResult{Items: items, Pagination: contracts.Pagination{Page: int64(page), PageSize: int64(pageSize), Total: total, TotalPages: totalPages(total, pageSize)}}, nil
+}
+
+func (s Service) ReplaceRoleServices(ctx context.Context, input ReplaceRoleServicesInput) error {
+	if _, err := s.ensureAdminPrincipal(ctx, input.AccessToken); err != nil {
+		return err
+	}
+	tx, err := s.db().BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin role services transaction: %w", err)
+	}
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(ctx, `DELETE FROM role_services WHERE role_id = $1`, input.RoleID); err != nil {
+		return fmt.Errorf("delete role services: %w", err)
+	}
+	for _, serviceID := range input.ServiceIDs {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO role_services (role_id, service_id) VALUES ($1, $2)`, input.RoleID, serviceID); err != nil {
+			return fmt.Errorf("insert role service: %w", err)
+		}
+	}
+	return tx.Commit()
+}
+
+func (s Service) ReplaceUserServiceOverrides(ctx context.Context, input ReplaceUserServiceOverridesInput) ([]UserServiceOverride, error) {
+	principal, err := s.ensureAdminPrincipal(ctx, input.AccessToken)
+	if err != nil {
+		return nil, err
+	}
+	if hasIntersection(input.AllowServiceIDs, input.DenyServiceIDs) {
+		return nil, &ServiceError{StatusCode: http.StatusUnprocessableEntity, Code: contracts.ErrorCodePolicyRuleInvalid, Message: "service override has conflicting allow and deny entries", UserMessage: "访问策略配置无效"}
+	}
+	tx, err := s.db().BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin user service override transaction: %w", err)
+	}
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(ctx, `DELETE FROM user_service_overrides WHERE user_id = $1`, input.UserID); err != nil {
+		return nil, fmt.Errorf("delete user service overrides: %w", err)
+	}
+	overrides := []UserServiceOverride{}
+	for _, serviceID := range input.AllowServiceIDs {
+		if err := insertUserServiceOverrideTx(ctx, tx, input.UserID, serviceID, "allow", principal.User.ID); err != nil {
+			return nil, err
+		}
+		overrides = append(overrides, UserServiceOverride{ServiceID: serviceID, Effect: "allow"})
+	}
+	for _, serviceID := range input.DenyServiceIDs {
+		if err := insertUserServiceOverrideTx(ctx, tx, input.UserID, serviceID, "deny", principal.User.ID); err != nil {
+			return nil, err
+		}
+		overrides = append(overrides, UserServiceOverride{ServiceID: serviceID, Effect: "deny"})
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit user service override transaction: %w", err)
+	}
+	return overrides, nil
 }
 
 func (s Service) authenticateUser(ctx context.Context, username string, password string) (userRecord, error) {
@@ -988,6 +1513,15 @@ type deviceKeyRecord struct {
 type clientPrincipal struct {
 	Claims AccessTokenClaims
 	User   userRecord
+}
+
+type proxyServiceRecord struct {
+	ID          string
+	Key         string
+	Name        string
+	PublicPath  string
+	UpstreamURL string
+	Status      string
 }
 
 func (s Service) rotateSession(ctx context.Context, user userRecord, session sessionRecord) (LoginResult, error) {
@@ -1262,6 +1796,31 @@ func (s Service) loadService(ctx context.Context, serviceID string) (ClientServi
 	return service, nil
 }
 
+func (s Service) loadProxyServiceByKey(ctx context.Context, serviceKey string) (proxyServiceRecord, error) {
+	row := s.db().QueryRowContext(
+		ctx,
+		`SELECT id, key, name, public_path, upstream_url, status
+		FROM services
+		WHERE key = $1`,
+		serviceKey,
+	)
+
+	var service proxyServiceRecord
+	if err := row.Scan(&service.ID, &service.Key, &service.Name, &service.PublicPath, &service.UpstreamURL, &service.Status); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return proxyServiceRecord{}, &ServiceError{
+				StatusCode:  http.StatusNotFound,
+				Code:        contracts.ErrorCodeServiceNotFound,
+				Message:     "service not found",
+				UserMessage: "服务不存在",
+			}
+		}
+		return proxyServiceRecord{}, fmt.Errorf("query proxy service by key: %w", err)
+	}
+
+	return service, nil
+}
+
 func (s Service) resolveServiceAccess(ctx context.Context, userID string, roleIDs []string, serviceID string) (string, bool, error) {
 	row := s.db().QueryRowContext(
 		ctx,
@@ -1403,6 +1962,13 @@ func replaceUserRoles(ctx context.Context, tx *sql.Tx, userID string, roleIDs []
 	return nil
 }
 
+func insertUserServiceOverrideTx(ctx context.Context, tx *sql.Tx, userID string, serviceID string, effect string, createdBy string) error {
+	if _, err := tx.ExecContext(ctx, `INSERT INTO user_service_overrides (user_id, service_id, effect, reason, created_by) VALUES ($1, $2, $3, '', $4)`, userID, serviceID, effect, createdBy); err != nil {
+		return fmt.Errorf("insert user service override: %w", err)
+	}
+	return nil
+}
+
 func buildAdminUserFilters(input ListAdminUsersInput) (string, []any) {
 	conditions := []string{"WHERE u.deleted_at IS NULL"}
 	args := []any{}
@@ -1421,6 +1987,91 @@ func buildAdminUserFilters(input ListAdminUsersInput) (string, []any) {
 	}
 
 	return strings.Join(conditions, " AND "), args
+}
+
+func buildAdminServiceFilters(input ListAdminServicesInput) (string, []any) {
+	conditions := []string{"WHERE true"}
+	args := []any{}
+	if input.Keyword != "" {
+		args = append(args, "%"+strings.ToLower(input.Keyword)+"%")
+		conditions = append(conditions, fmt.Sprintf("(LOWER(s.key) LIKE $%d OR LOWER(s.name) LIKE $%d OR LOWER(s.description) LIKE $%d)", len(args), len(args), len(args)))
+	}
+	if input.Status != "" {
+		args = append(args, input.Status)
+		conditions = append(conditions, fmt.Sprintf("s.status = $%d", len(args)))
+	}
+	if input.Group != "" {
+		args = append(args, input.Group)
+		conditions = append(conditions, fmt.Sprintf("s.group_name = $%d", len(args)))
+	}
+	return strings.Join(conditions, " AND "), args
+}
+
+func buildAdminDeviceFilters(input ListAdminDevicesInput) (string, []any) {
+	conditions := []string{"WHERE true"}
+	args := []any{}
+	if input.Keyword != "" {
+		args = append(args, "%"+strings.ToLower(input.Keyword)+"%")
+		conditions = append(conditions, fmt.Sprintf("(LOWER(d.name) LIKE $%d OR LOWER(u.username) LIKE $%d OR LOWER(d.public_key_fingerprint) LIKE $%d)", len(args), len(args), len(args)))
+	}
+	if input.Status != "" {
+		args = append(args, input.Status)
+		conditions = append(conditions, fmt.Sprintf("d.status = $%d", len(args)))
+	}
+	if input.UserID != "" {
+		args = append(args, input.UserID)
+		conditions = append(conditions, fmt.Sprintf("d.user_id = $%d", len(args)))
+	}
+	return strings.Join(conditions, " AND "), args
+}
+
+func buildAdminAuditFilters(input ListAdminAuditEventsInput) (string, []any) {
+	conditions := []string{"WHERE true"}
+	args := []any{}
+	add := func(column string, value string) {
+		if value == "" {
+			return
+		}
+		args = append(args, value)
+		conditions = append(conditions, fmt.Sprintf("%s = $%d", column, len(args)))
+	}
+	add("a.type", input.Type)
+	add("a.actor_user_id", input.ActorUserID)
+	add("a.target_type", input.TargetType)
+	add("a.target_id", input.TargetID)
+	add("a.service_id", input.ServiceID)
+	add("a.result", input.Result)
+	return strings.Join(conditions, " AND "), args
+}
+
+func buildSimpleKeywordFilter(alias string, columns []string, keyword string, extraCondition string) (string, []any) {
+	conditions := []string{"WHERE true"}
+	args := []any{}
+	if extraCondition != "" {
+		conditions = append(conditions, extraCondition)
+	}
+	if keyword != "" {
+		args = append(args, "%"+strings.ToLower(keyword)+"%")
+		parts := make([]string, 0, len(columns))
+		for _, column := range columns {
+			parts = append(parts, fmt.Sprintf("LOWER(%s.%s) LIKE $%d", alias, column, len(args)))
+		}
+		conditions = append(conditions, "("+strings.Join(parts, " OR ")+")")
+	}
+	return strings.Join(conditions, " AND "), args
+}
+
+func hasIntersection(left []string, right []string) bool {
+	seen := map[string]bool{}
+	for _, item := range left {
+		seen[item] = true
+	}
+	for _, item := range right {
+		if seen[item] {
+			return true
+		}
+	}
+	return false
 }
 
 func normalizePagination(page int, pageSize int) (int, int) {
@@ -1546,6 +2197,72 @@ func (s Service) newUserID() (string, error) {
 	return "user_" + token[:20], nil
 }
 
+func (s Service) newRoleID() (string, error) {
+	if s.RoleIDFactory != nil {
+		return s.RoleIDFactory()
+	}
+	token, err := GenerateRefreshToken()
+	if err != nil {
+		return "", fmt.Errorf("generate role id: %w", err)
+	}
+	return "role_" + token[:20], nil
+}
+
+func (s Service) newServiceID() (string, error) {
+	if s.ServiceIDFactory != nil {
+		return s.ServiceIDFactory()
+	}
+	token, err := GenerateRefreshToken()
+	if err != nil {
+		return "", fmt.Errorf("generate service id: %w", err)
+	}
+	return "service_" + token[:20], nil
+}
+
+func (s Service) newAuditEventID() (string, error) {
+	token, err := GenerateRefreshToken()
+	if err != nil {
+		return "", fmt.Errorf("generate audit event id: %w", err)
+	}
+	return "audit_" + token[:20], nil
+}
+
+func (s Service) recordAuditEvent(ctx context.Context, input auditEventInput) error {
+	eventID, err := s.newAuditEventID()
+	if err != nil {
+		return err
+	}
+
+	requestID := strings.TrimSpace(input.RequestID)
+	if requestID == "" {
+		requestID = fmt.Sprintf("req_internal_%d", s.now().UTC().UnixNano())
+	}
+
+	var serviceID any
+	if strings.TrimSpace(input.ServiceID) != "" {
+		serviceID = input.ServiceID
+	}
+
+	if _, err := s.db().ExecContext(
+		ctx,
+		`INSERT INTO audit_events (id, request_id, type, actor_user_id, target_type, target_id, service_id, result, summary)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+		eventID,
+		requestID,
+		string(input.Type),
+		nullIfEmpty(input.ActorUserID),
+		input.TargetType,
+		nullIfEmpty(input.TargetID),
+		serviceID,
+		input.Result,
+		input.Summary,
+	); err != nil {
+		return fmt.Errorf("insert audit event: %w", err)
+	}
+
+	return nil
+}
+
 func (s Service) challengeTTL() time.Duration {
 	if s.ChallengeTTL > 0 {
 		return s.ChallengeTTL
@@ -1573,4 +2290,11 @@ func valueOrEmpty(value *string) string {
 		return ""
 	}
 	return *value
+}
+
+func nullIfEmpty(value string) any {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	return value
 }

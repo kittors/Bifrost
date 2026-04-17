@@ -516,6 +516,92 @@ func TestAdminUserRoutes(t *testing.T) {
 	}
 }
 
+func TestAdminConfigRoutes(t *testing.T) {
+	t.Parallel()
+
+	stub := &stubAuthService{
+		adminRoles: auth.AdminRoleListResult{
+			Items:      []auth.AdminRole{{ID: "role_ops", Name: "ops", DisplayName: "Operations"}},
+			Pagination: contracts.Pagination{Page: 1, PageSize: 20, Total: 1, TotalPages: 1},
+		},
+		createdAdminRole: auth.AdminRole{ID: "role_created_01", Name: "qa", DisplayName: "QA"},
+		adminServices: auth.AdminServiceListResult{
+			Items:      []auth.AdminService{{ID: "service_docs", Key: "docs", Name: "Docs", Status: "enabled"}},
+			Pagination: contracts.Pagination{Page: 1, PageSize: 20, Total: 1, TotalPages: 1},
+		},
+		createdAdminService: auth.AdminService{ID: "service_created_01", Key: "gitlab", Name: "GitLab", Status: "enabled"},
+		adminDevices: auth.AdminDeviceListResult{
+			Items:      []auth.AdminDevice{{ID: "device_01", UserID: "user_alice", Name: "Alice Mac", Status: "trusted"}},
+			Pagination: contracts.Pagination{Page: 1, PageSize: 20, Total: 1, TotalPages: 1},
+		},
+		adminAuditEvents: auth.AdminAuditEventListResult{
+			Items:      []auth.AdminAuditEvent{{ID: "audit_01", Type: "auth.login.succeeded", Result: "success"}},
+			Pagination: contracts.Pagination{Page: 1, PageSize: 20, Total: 1, TotalPages: 1},
+		},
+		userServiceOverrides: []auth.UserServiceOverride{{ServiceID: "service_docs", Effect: "allow"}},
+	}
+
+	app := server.New(server.Options{
+		ReadyCheck: func(ctx context.Context) error {
+			return nil
+		},
+		ReadyTime: "2026-04-17T12:00:00Z",
+		Upstreams: map[string]string{},
+		Now: func() time.Time {
+			return time.Date(2026, time.April, 17, 13, 45, 0, 0, time.UTC)
+		},
+		RequestID: func() string {
+			return "req_admin_config_routes"
+		},
+		AuthService: stub,
+	})
+
+	requests := []struct {
+		method string
+		path   string
+		body   string
+		want   int
+	}{
+		{http.MethodGet, "/api/v1/admin/roles?keyword=ops", "", http.StatusOK},
+		{http.MethodPost, "/api/v1/admin/roles", `{"name":"qa","displayName":"QA","description":"Quality"}`, http.StatusCreated},
+		{http.MethodGet, "/api/v1/admin/services?group=shared", "", http.StatusOK},
+		{http.MethodPost, "/api/v1/admin/services", `{"key":"gitlab","name":"GitLab","description":"Code","group":"engineering","protocol":"http","upstreamUrl":"http://gitlab:8080","publicPath":"/s/gitlab","enabled":true}`, http.StatusCreated},
+		{http.MethodGet, "/api/v1/admin/devices?userId=user_alice", "", http.StatusOK},
+		{http.MethodGet, "/api/v1/admin/audit-events?type=auth.login.succeeded", "", http.StatusOK},
+		{http.MethodPut, "/api/v1/admin/roles/role_ops/services", `{"serviceIds":["service_docs"]}`, http.StatusOK},
+		{http.MethodPut, "/api/v1/admin/users/user_alice/service-overrides", `{"allowServiceIds":["service_docs"],"denyServiceIds":["service_gitlab"]}`, http.StatusOK},
+	}
+
+	for _, item := range requests {
+		t.Run(item.method+" "+item.path, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			var body *strings.Reader
+			if item.body == "" {
+				body = strings.NewReader("")
+			} else {
+				body = strings.NewReader(item.body)
+			}
+			request := httptest.NewRequest(item.method, item.path, body)
+			request.Header.Set("Authorization", "Bearer admin-token")
+			request.Header.Set("Content-Type", "application/json")
+			app.Handler().ServeHTTP(recorder, request)
+			if recorder.Code != item.want {
+				t.Fatalf("expected status %d, got %d with body %s", item.want, recorder.Code, recorder.Body.String())
+			}
+		})
+	}
+
+	if stub.listAdminRolesInput.Keyword != "ops" {
+		t.Fatalf("expected role keyword ops, got %q", stub.listAdminRolesInput.Keyword)
+	}
+	if stub.replaceRoleServicesInput.RoleID != "role_ops" {
+		t.Fatalf("expected role service role id role_ops, got %q", stub.replaceRoleServicesInput.RoleID)
+	}
+	if stub.replaceUserServiceOverridesInput.UserID != "user_alice" {
+		t.Fatalf("expected override user id user_alice, got %q", stub.replaceUserServiceOverridesInput.UserID)
+	}
+}
+
 type stubAuthService struct {
 	adminLoginInput  auth.AdminLoginInput
 	adminLoginResult auth.LoginResult
@@ -560,6 +646,13 @@ type stubAuthService struct {
 	serviceAccessURL            auth.ServiceAccessURLResult
 	serviceAccessURLError       error
 
+	resolveProxyInput  auth.ResolveProxyRequestInput
+	resolveProxyResult auth.ResolveProxyRequestResult
+	resolveProxyError  error
+
+	recordProxyAccessEventInput auth.RecordProxyAccessEventInput
+	recordProxyAccessEventError error
+
 	listAdminUsersInput auth.ListAdminUsersInput
 	adminUsers          auth.AdminUserListResult
 	adminUsersError     error
@@ -571,6 +664,37 @@ type stubAuthService struct {
 	updateAdminUserInput auth.UpdateAdminUserInput
 	updatedAdminUser     auth.AdminUser
 	updateAdminUserError error
+
+	listAdminRolesInput auth.ListAdminRolesInput
+	adminRoles          auth.AdminRoleListResult
+	adminRolesError     error
+
+	createAdminRoleInput auth.CreateAdminRoleInput
+	createdAdminRole     auth.AdminRole
+	createAdminRoleError error
+
+	listAdminServicesInput auth.ListAdminServicesInput
+	adminServices          auth.AdminServiceListResult
+	adminServicesError     error
+
+	createAdminServiceInput auth.CreateAdminServiceInput
+	createdAdminService     auth.AdminService
+	createAdminServiceError error
+
+	listAdminDevicesInput auth.ListAdminDevicesInput
+	adminDevices          auth.AdminDeviceListResult
+	adminDevicesError     error
+
+	listAdminAuditEventsInput auth.ListAdminAuditEventsInput
+	adminAuditEvents          auth.AdminAuditEventListResult
+	adminAuditEventsError     error
+
+	replaceRoleServicesInput auth.ReplaceRoleServicesInput
+	replaceRoleServicesError error
+
+	replaceUserServiceOverridesInput auth.ReplaceUserServiceOverridesInput
+	userServiceOverrides             []auth.UserServiceOverride
+	userServiceOverridesError        error
 }
 
 func (s *stubAuthService) AdminLogin(_ context.Context, input auth.AdminLoginInput) (auth.LoginResult, error) {
@@ -628,6 +752,16 @@ func (s *stubAuthService) CreateServiceAccessURL(_ context.Context, input auth.C
 	return s.serviceAccessURL, s.serviceAccessURLError
 }
 
+func (s *stubAuthService) ResolveProxyRequest(_ context.Context, input auth.ResolveProxyRequestInput) (auth.ResolveProxyRequestResult, error) {
+	s.resolveProxyInput = input
+	return s.resolveProxyResult, s.resolveProxyError
+}
+
+func (s *stubAuthService) RecordProxyAccessEvent(_ context.Context, input auth.RecordProxyAccessEventInput) error {
+	s.recordProxyAccessEventInput = input
+	return s.recordProxyAccessEventError
+}
+
 func (s *stubAuthService) ListAdminUsers(_ context.Context, input auth.ListAdminUsersInput) (auth.AdminUserListResult, error) {
 	s.listAdminUsersInput = input
 	return s.adminUsers, s.adminUsersError
@@ -641,6 +775,46 @@ func (s *stubAuthService) CreateAdminUser(_ context.Context, input auth.CreateAd
 func (s *stubAuthService) UpdateAdminUser(_ context.Context, input auth.UpdateAdminUserInput) (auth.AdminUser, error) {
 	s.updateAdminUserInput = input
 	return s.updatedAdminUser, s.updateAdminUserError
+}
+
+func (s *stubAuthService) ListAdminRoles(_ context.Context, input auth.ListAdminRolesInput) (auth.AdminRoleListResult, error) {
+	s.listAdminRolesInput = input
+	return s.adminRoles, s.adminRolesError
+}
+
+func (s *stubAuthService) CreateAdminRole(_ context.Context, input auth.CreateAdminRoleInput) (auth.AdminRole, error) {
+	s.createAdminRoleInput = input
+	return s.createdAdminRole, s.createAdminRoleError
+}
+
+func (s *stubAuthService) ListAdminServices(_ context.Context, input auth.ListAdminServicesInput) (auth.AdminServiceListResult, error) {
+	s.listAdminServicesInput = input
+	return s.adminServices, s.adminServicesError
+}
+
+func (s *stubAuthService) CreateAdminService(_ context.Context, input auth.CreateAdminServiceInput) (auth.AdminService, error) {
+	s.createAdminServiceInput = input
+	return s.createdAdminService, s.createAdminServiceError
+}
+
+func (s *stubAuthService) ListAdminDevices(_ context.Context, input auth.ListAdminDevicesInput) (auth.AdminDeviceListResult, error) {
+	s.listAdminDevicesInput = input
+	return s.adminDevices, s.adminDevicesError
+}
+
+func (s *stubAuthService) ListAdminAuditEvents(_ context.Context, input auth.ListAdminAuditEventsInput) (auth.AdminAuditEventListResult, error) {
+	s.listAdminAuditEventsInput = input
+	return s.adminAuditEvents, s.adminAuditEventsError
+}
+
+func (s *stubAuthService) ReplaceRoleServices(_ context.Context, input auth.ReplaceRoleServicesInput) error {
+	s.replaceRoleServicesInput = input
+	return s.replaceRoleServicesError
+}
+
+func (s *stubAuthService) ReplaceUserServiceOverrides(_ context.Context, input auth.ReplaceUserServiceOverridesInput) ([]auth.UserServiceOverride, error) {
+	s.replaceUserServiceOverridesInput = input
+	return s.userServiceOverrides, s.userServiceOverridesError
 }
 
 type apiEnvelope struct {
