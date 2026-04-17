@@ -28,6 +28,7 @@
 - RoleService
 - UserServiceOverride
 - Session
+- DeviceChallenge
 - AuditEvent
 - SystemSetting
 
@@ -207,7 +208,30 @@
 | `created_at` | timestamptz | 创建时间 |
 | `revoked_at` | timestamptz | 吊销时间 |
 
-## 12. audit_events
+## 12. device_challenges
+
+用途：
+
+- 存储设备签名挑战，支持服务端确认客户端持有设备私钥
+
+建议字段：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `id` | text | 挑战 ID |
+| `device_id` | text | 设备 ID |
+| `challenge` | text | base64url 编码的随机挑战 |
+| `expires_at` | timestamptz | 过期时间 |
+| `verified_at` | timestamptz | 验证成功时间 |
+| `created_at` | timestamptz | 创建时间 |
+
+约束：
+
+- `device_id` 必须引用已存在设备
+- 挑战必须短期有效，第一阶段默认 120 秒
+- 已验证或过期挑战不得重复使用
+
+## 13. audit_events
 
 用途：
 
@@ -233,7 +257,7 @@
 | `details` | jsonb | 结构化详情 |
 | `occurred_at` | timestamptz | 发生时间 |
 
-## 13. system_settings
+## 14. system_settings
 
 用途：
 
@@ -248,13 +272,15 @@
 | `updated_by` | text | 更新人 |
 | `updated_at` | timestamptz | 更新时间 |
 
-## 14. 索引建议
+## 15. 索引建议
 
 建议索引：
 
 - `users(username)`
 - `devices(user_id)`
 - `devices(public_key_fingerprint)`
+- `device_challenges(device_id)`
+- `device_challenges(expires_at)`
 - `services(key)`
 - `services(public_path)`
 - `audit_events(occurred_at)`
@@ -263,13 +289,13 @@
 - `audit_events(service_id, occurred_at)`
 - `sessions(user_id, device_id)`
 
-## 15. 数据保留策略
+## 16. 数据保留策略
 
 - 用户、设备、服务删除优先软删除或归档
 - 审计日志不随业务对象删除
 - 审计保留周期由系统设置控制
 
-## 16. 后续扩展预留
+## 17. 后续扩展预留
 
 未来可增加：
 

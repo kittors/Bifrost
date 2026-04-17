@@ -14,6 +14,11 @@
 
 ## 2. 客户端认证 API
 
+第一阶段实现说明：
+
+- 设备注册、挑战申请、挑战验签当前都要求客户端已携带有效 `Bearer access token`
+- “首次登录即注册新设备”的匿名 bootstrap 流程将在后续阶段单独设计
+
 ## 2.1 登录
 
 ```text
@@ -44,6 +49,10 @@ POST /api/v1/client/auth/login
 POST /api/v1/client/devices/challenge
 ```
 
+请求头：
+
+- `Authorization: Bearer <access_token>`
+
 请求体：
 
 ```json
@@ -67,6 +76,10 @@ POST /api/v1/client/devices/challenge
 ```text
 POST /api/v1/client/devices/challenge/verify
 ```
+
+请求头：
+
+- `Authorization: Bearer <access_token>`
 
 请求体：
 
@@ -110,6 +123,10 @@ POST /api/v1/client/auth/logout
 ```text
 POST /api/v1/client/devices/register
 ```
+
+请求头：
+
+- `Authorization: Bearer <access_token>`
 
 请求体：
 

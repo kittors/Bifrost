@@ -30,6 +30,7 @@ func TestMigrateUpSeedAndDown(t *testing.T) {
 	assertTableExists(t, ctx, dsn, "users")
 	assertTableExists(t, ctx, dsn, "services")
 	assertTableExists(t, ctx, dsn, "audit_events")
+	assertTableExists(t, ctx, dsn, "device_challenges")
 
 	if err := database.SeedPhase1(ctx, dsn); err != nil {
 		t.Fatalf("seed phase 1 first run: %v", err)

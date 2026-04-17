@@ -39,6 +39,9 @@ type AuthService interface {
 	RefreshSession(ctx context.Context, input auth.RefreshInput) (auth.LoginResult, error)
 	Logout(ctx context.Context, input auth.LogoutInput) error
 	CurrentUser(ctx context.Context, input auth.CurrentUserInput) (auth.LoginUser, error)
+	RegisterDevice(ctx context.Context, input auth.RegisterDeviceInput) (auth.DeviceResult, error)
+	CreateDeviceChallenge(ctx context.Context, input auth.CreateDeviceChallengeInput) (auth.DeviceChallengeResult, error)
+	VerifyDeviceChallenge(ctx context.Context, input auth.VerifyDeviceChallengeInput) (auth.DeviceChallengeVerificationResult, error)
 }
 
 func New(options Options) *App {
@@ -64,6 +67,9 @@ func New(options Options) *App {
 	mux.HandleFunc("/api/v1/client/auth/refresh", app.handleClientRefresh)
 	mux.HandleFunc("/api/v1/client/auth/logout", app.handleLogout)
 	mux.HandleFunc("/api/v1/client/me", app.handleCurrentUser)
+	mux.HandleFunc("/api/v1/client/devices/register", app.handleDeviceRegister)
+	mux.HandleFunc("/api/v1/client/devices/challenge", app.handleDeviceChallenge)
+	mux.HandleFunc("/api/v1/client/devices/challenge/verify", app.handleDeviceChallengeVerify)
 	app.handler = mux
 
 	return app
@@ -379,6 +385,154 @@ func (a *App) handleCurrentUser(writer http.ResponseWriter, request *http.Reques
 
 	a.writeAPISuccess(writer, http.StatusOK, requestID, timestamp, map[string]any{
 		"user": loginUserPayload(user),
+	})
+}
+
+func (a *App) handleDeviceRegister(writer http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodPost {
+		writer.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	requestID, timestamp := a.requestMeta(request)
+	token, ok := bearerToken(request)
+	if !ok {
+		a.writeAPIError(writer, requestID, timestamp, apiError{
+			statusCode:  http.StatusUnauthorized,
+			code:        contracts.ErrorCodeAuthInvalidToken,
+			message:     "bearer token is required",
+			userMessage: "登录状态已失效，请重新登录",
+		})
+		return
+	}
+
+	var payload struct {
+		Name                 string `json:"name"`
+		OS                   string `json:"os"`
+		ClientVersion        string `json:"clientVersion"`
+		PublicKey            string `json:"publicKey"`
+		PublicKeyFingerprint string `json:"publicKeyFingerprint"`
+	}
+	if err := json.NewDecoder(request.Body).Decode(&payload); err != nil {
+		a.writeAPIError(writer, requestID, timestamp, apiError{
+			statusCode:  http.StatusBadRequest,
+			code:        contracts.ErrorCodeCommonBadRequest,
+			message:     "request body must be valid JSON",
+			userMessage: "请求参数不正确",
+		})
+		return
+	}
+
+	device, err := a.authService.RegisterDevice(request.Context(), auth.RegisterDeviceInput{
+		AccessToken:          token,
+		Name:                 payload.Name,
+		OS:                   payload.OS,
+		ClientVersion:        payload.ClientVersion,
+		PublicKey:            payload.PublicKey,
+		PublicKeyFingerprint: payload.PublicKeyFingerprint,
+	})
+	if err != nil {
+		a.writeMappedError(writer, requestID, timestamp, err)
+		return
+	}
+
+	a.writeAPISuccess(writer, http.StatusCreated, requestID, timestamp, map[string]any{
+		"deviceId": device.ID,
+		"status":   device.Status,
+	})
+}
+
+func (a *App) handleDeviceChallenge(writer http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodPost {
+		writer.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	requestID, timestamp := a.requestMeta(request)
+	token, ok := bearerToken(request)
+	if !ok {
+		a.writeAPIError(writer, requestID, timestamp, apiError{
+			statusCode:  http.StatusUnauthorized,
+			code:        contracts.ErrorCodeAuthInvalidToken,
+			message:     "bearer token is required",
+			userMessage: "登录状态已失效，请重新登录",
+		})
+		return
+	}
+
+	var payload struct {
+		DeviceID string `json:"deviceId"`
+	}
+	if err := json.NewDecoder(request.Body).Decode(&payload); err != nil {
+		a.writeAPIError(writer, requestID, timestamp, apiError{
+			statusCode:  http.StatusBadRequest,
+			code:        contracts.ErrorCodeCommonBadRequest,
+			message:     "request body must be valid JSON",
+			userMessage: "请求参数不正确",
+		})
+		return
+	}
+
+	challenge, err := a.authService.CreateDeviceChallenge(request.Context(), auth.CreateDeviceChallengeInput{
+		AccessToken: token,
+		DeviceID:    payload.DeviceID,
+	})
+	if err != nil {
+		a.writeMappedError(writer, requestID, timestamp, err)
+		return
+	}
+
+	a.writeAPISuccess(writer, http.StatusOK, requestID, timestamp, map[string]any{
+		"challengeId": challenge.ID,
+		"challenge":   challenge.Challenge,
+		"expiresIn":   challenge.ExpiresIn,
+	})
+}
+
+func (a *App) handleDeviceChallengeVerify(writer http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodPost {
+		writer.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	requestID, timestamp := a.requestMeta(request)
+	token, ok := bearerToken(request)
+	if !ok {
+		a.writeAPIError(writer, requestID, timestamp, apiError{
+			statusCode:  http.StatusUnauthorized,
+			code:        contracts.ErrorCodeAuthInvalidToken,
+			message:     "bearer token is required",
+			userMessage: "登录状态已失效，请重新登录",
+		})
+		return
+	}
+
+	var payload struct {
+		ChallengeID string `json:"challengeId"`
+		Signature   string `json:"signature"`
+	}
+	if err := json.NewDecoder(request.Body).Decode(&payload); err != nil {
+		a.writeAPIError(writer, requestID, timestamp, apiError{
+			statusCode:  http.StatusBadRequest,
+			code:        contracts.ErrorCodeCommonBadRequest,
+			message:     "request body must be valid JSON",
+			userMessage: "请求参数不正确",
+		})
+		return
+	}
+
+	result, err := a.authService.VerifyDeviceChallenge(request.Context(), auth.VerifyDeviceChallengeInput{
+		AccessToken: token,
+		ChallengeID: payload.ChallengeID,
+		Signature:   payload.Signature,
+	})
+	if err != nil {
+		a.writeMappedError(writer, requestID, timestamp, err)
+		return
+	}
+
+	a.writeAPISuccess(writer, http.StatusOK, requestID, timestamp, map[string]any{
+		"verified": result.Verified,
 	})
 }
 

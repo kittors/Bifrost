@@ -23,6 +23,7 @@ const (
 	defaultArgonSaltLength  = 16
 	defaultArgonKeyLength   = 32
 	refreshTokenLength      = 32
+	challengeLength         = 32
 )
 
 var (
@@ -154,6 +155,15 @@ func GenerateRefreshToken() (string, error) {
 	random := make([]byte, refreshTokenLength)
 	if _, err := rand.Read(random); err != nil {
 		return "", fmt.Errorf("read refresh token bytes: %w", err)
+	}
+
+	return base64.RawURLEncoding.EncodeToString(random), nil
+}
+
+func GenerateChallenge() (string, error) {
+	random := make([]byte, challengeLength)
+	if _, err := rand.Read(random); err != nil {
+		return "", fmt.Errorf("read challenge bytes: %w", err)
 	}
 
 	return base64.RawURLEncoding.EncodeToString(random), nil
