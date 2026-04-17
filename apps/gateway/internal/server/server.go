@@ -42,6 +42,9 @@ type AuthService interface {
 	RegisterDevice(ctx context.Context, input auth.RegisterDeviceInput) (auth.DeviceResult, error)
 	CreateDeviceChallenge(ctx context.Context, input auth.CreateDeviceChallengeInput) (auth.DeviceChallengeResult, error)
 	VerifyDeviceChallenge(ctx context.Context, input auth.VerifyDeviceChallengeInput) (auth.DeviceChallengeVerificationResult, error)
+	ListClientServices(ctx context.Context, input auth.ListClientServicesInput) ([]auth.ClientService, error)
+	GetClientService(ctx context.Context, input auth.GetClientServiceInput) (auth.ClientService, error)
+	CreateServiceAccessURL(ctx context.Context, input auth.CreateServiceAccessURLInput) (auth.ServiceAccessURLResult, error)
 }
 
 func New(options Options) *App {
@@ -70,6 +73,8 @@ func New(options Options) *App {
 	mux.HandleFunc("/api/v1/client/devices/register", app.handleDeviceRegister)
 	mux.HandleFunc("/api/v1/client/devices/challenge", app.handleDeviceChallenge)
 	mux.HandleFunc("/api/v1/client/devices/challenge/verify", app.handleDeviceChallengeVerify)
+	mux.HandleFunc("/api/v1/client/services", app.handleClientServices)
+	mux.HandleFunc("/api/v1/client/services/", app.handleClientServiceByID)
 	app.handler = mux
 
 	return app
@@ -536,6 +541,103 @@ func (a *App) handleDeviceChallengeVerify(writer http.ResponseWriter, request *h
 	})
 }
 
+func (a *App) handleClientServices(writer http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodGet {
+		writer.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	requestID, timestamp := a.requestMeta(request)
+	token, ok := bearerToken(request)
+	if !ok {
+		a.writeAPIError(writer, requestID, timestamp, missingBearerTokenError())
+		return
+	}
+
+	services, err := a.authService.ListClientServices(request.Context(), auth.ListClientServicesInput{
+		AccessToken: token,
+		Keyword:     strings.TrimSpace(request.URL.Query().Get("keyword")),
+		Group:       strings.TrimSpace(request.URL.Query().Get("group")),
+	})
+	if err != nil {
+		a.writeMappedError(writer, requestID, timestamp, err)
+		return
+	}
+
+	items := make([]map[string]any, 0, len(services))
+	for _, service := range services {
+		items = append(items, clientServicePayload(service))
+	}
+
+	a.writeAPISuccess(writer, http.StatusOK, requestID, timestamp, map[string]any{
+		"items": items,
+	})
+}
+
+func (a *App) handleClientServiceByID(writer http.ResponseWriter, request *http.Request) {
+	serviceID, action, ok := parseClientServicePath(request.URL.Path)
+	if !ok {
+		writer.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	if action == "access-url" {
+		a.handleClientServiceAccessURL(writer, request, serviceID)
+		return
+	}
+
+	if request.Method != http.MethodGet {
+		writer.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	requestID, timestamp := a.requestMeta(request)
+	token, ok := bearerToken(request)
+	if !ok {
+		a.writeAPIError(writer, requestID, timestamp, missingBearerTokenError())
+		return
+	}
+
+	service, err := a.authService.GetClientService(request.Context(), auth.GetClientServiceInput{
+		AccessToken: token,
+		ServiceID:   serviceID,
+	})
+	if err != nil {
+		a.writeMappedError(writer, requestID, timestamp, err)
+		return
+	}
+
+	a.writeAPISuccess(writer, http.StatusOK, requestID, timestamp, clientServicePayload(service))
+}
+
+func (a *App) handleClientServiceAccessURL(writer http.ResponseWriter, request *http.Request, serviceID string) {
+	if request.Method != http.MethodPost {
+		writer.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	requestID, timestamp := a.requestMeta(request)
+	token, ok := bearerToken(request)
+	if !ok {
+		a.writeAPIError(writer, requestID, timestamp, missingBearerTokenError())
+		return
+	}
+
+	result, err := a.authService.CreateServiceAccessURL(request.Context(), auth.CreateServiceAccessURLInput{
+		AccessToken: token,
+		ServiceID:   serviceID,
+	})
+	if err != nil {
+		a.writeMappedError(writer, requestID, timestamp, err)
+		return
+	}
+
+	a.writeAPISuccess(writer, http.StatusOK, requestID, timestamp, map[string]any{
+		"url":       absoluteURL(request, result.PublicPath),
+		"expiresIn": result.ExpiresIn,
+	})
+}
+
 func (a *App) requestMeta(request *http.Request) (string, string) {
 	requestID := strings.TrimSpace(request.Header.Get("X-Request-Id"))
 	if requestID == "" {
@@ -567,6 +669,15 @@ func bearerToken(request *http.Request) (string, bool) {
 	return strings.TrimSpace(value), true
 }
 
+func missingBearerTokenError() apiError {
+	return apiError{
+		statusCode:  http.StatusUnauthorized,
+		code:        contracts.ErrorCodeAuthInvalidToken,
+		message:     "bearer token is required",
+		userMessage: "登录状态已失效，请重新登录",
+	}
+}
+
 func loginUserPayload(user auth.LoginUser) map[string]any {
 	return map[string]any{
 		"id":          user.ID,
@@ -574,6 +685,42 @@ func loginUserPayload(user auth.LoginUser) map[string]any {
 		"displayName": user.DisplayName,
 		"roles":       user.Roles,
 	}
+}
+
+func clientServicePayload(service auth.ClientService) map[string]any {
+	return map[string]any{
+		"id":           service.ID,
+		"key":          service.Key,
+		"name":         service.Name,
+		"description":  service.Description,
+		"group":        service.Group,
+		"status":       service.Status,
+		"accessSource": service.AccessSource,
+	}
+}
+
+func parseClientServicePath(path string) (string, string, bool) {
+	remaining := strings.TrimPrefix(path, "/api/v1/client/services/")
+	if remaining == path || remaining == "" {
+		return "", "", false
+	}
+
+	parts := strings.Split(strings.Trim(remaining, "/"), "/")
+	if len(parts) == 1 {
+		return parts[0], "", parts[0] != ""
+	}
+	if len(parts) == 2 && parts[1] == "access-url" {
+		return parts[0], parts[1], parts[0] != ""
+	}
+	return "", "", false
+}
+
+func absoluteURL(request *http.Request, publicPath string) string {
+	scheme := strings.TrimSpace(request.Header.Get("X-Forwarded-Proto"))
+	if scheme == "" {
+		scheme = "http"
+	}
+	return scheme + "://" + request.Host + strings.TrimRight(publicPath, "/") + "/"
 }
 
 func (a *App) writeMappedError(writer http.ResponseWriter, requestID string, timestamp string, err error) {

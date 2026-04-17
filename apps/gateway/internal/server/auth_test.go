@@ -330,6 +330,92 @@ func TestClientDeviceRegisterChallengeAndVerifyRoutes(t *testing.T) {
 	}
 }
 
+func TestClientServiceRoutes(t *testing.T) {
+	t.Parallel()
+
+	stub := &stubAuthService{
+		clientServices: []auth.ClientService{
+			{
+				ID:           "service_gitlab",
+				Key:          "gitlab",
+				Name:         "GitLab",
+				Description:  "Source code",
+				Group:        "engineering",
+				Status:       "enabled",
+				AccessSource: "role",
+			},
+		},
+		clientService: auth.ClientService{
+			ID:           "service_gitlab",
+			Key:          "gitlab",
+			Name:         "GitLab",
+			Description:  "Source code",
+			Group:        "engineering",
+			Status:       "enabled",
+			AccessSource: "role",
+		},
+		serviceAccessURL: auth.ServiceAccessURLResult{
+			PublicPath: "/s/gitlab",
+			ExpiresIn:  300,
+		},
+	}
+
+	app := server.New(server.Options{
+		ReadyCheck: func(ctx context.Context) error {
+			return nil
+		},
+		ReadyTime: "2026-04-17T12:00:00Z",
+		Upstreams: map[string]string{},
+		Now: func() time.Time {
+			return time.Date(2026, time.April, 17, 13, 45, 0, 0, time.UTC)
+		},
+		RequestID: func() string {
+			return "req_service_routes"
+		},
+		AuthService: stub,
+	})
+
+	listRecorder := httptest.NewRecorder()
+	listRequest := httptest.NewRequest(http.MethodGet, "/api/v1/client/services?keyword=git&group=engineering", nil)
+	listRequest.Header.Set("Authorization", "Bearer access-token")
+	app.Handler().ServeHTTP(listRecorder, listRequest)
+
+	if listRecorder.Code != http.StatusOK {
+		t.Fatalf("expected list status 200, got %d", listRecorder.Code)
+	}
+
+	if stub.listClientServicesInput.Keyword != "git" {
+		t.Fatalf("expected list keyword git, got %q", stub.listClientServicesInput.Keyword)
+	}
+
+	detailRecorder := httptest.NewRecorder()
+	detailRequest := httptest.NewRequest(http.MethodGet, "/api/v1/client/services/service_gitlab", nil)
+	detailRequest.Header.Set("Authorization", "Bearer access-token")
+	app.Handler().ServeHTTP(detailRecorder, detailRequest)
+
+	if detailRecorder.Code != http.StatusOK {
+		t.Fatalf("expected detail status 200, got %d", detailRecorder.Code)
+	}
+
+	if stub.getClientServiceInput.ServiceID != "service_gitlab" {
+		t.Fatalf("expected detail service id forwarded, got %q", stub.getClientServiceInput.ServiceID)
+	}
+
+	accessRecorder := httptest.NewRecorder()
+	accessRequest := httptest.NewRequest(http.MethodPost, "/api/v1/client/services/service_gitlab/access-url", nil)
+	accessRequest.Header.Set("Authorization", "Bearer access-token")
+	accessRequest.Host = "127.0.0.1:18080"
+	app.Handler().ServeHTTP(accessRecorder, accessRequest)
+
+	if accessRecorder.Code != http.StatusOK {
+		t.Fatalf("expected access-url status 200, got %d", accessRecorder.Code)
+	}
+
+	if stub.createServiceAccessURLInput.ServiceID != "service_gitlab" {
+		t.Fatalf("expected access-url service id forwarded, got %q", stub.createServiceAccessURLInput.ServiceID)
+	}
+}
+
 type stubAuthService struct {
 	adminLoginInput  auth.AdminLoginInput
 	adminLoginResult auth.LoginResult
@@ -361,6 +447,18 @@ type stubAuthService struct {
 	verifyDeviceChallengeInput  auth.VerifyDeviceChallengeInput
 	verifyDeviceChallengeResult auth.DeviceChallengeVerificationResult
 	verifyDeviceChallengeError  error
+
+	listClientServicesInput auth.ListClientServicesInput
+	clientServices          []auth.ClientService
+	clientServicesError     error
+
+	getClientServiceInput auth.GetClientServiceInput
+	clientService         auth.ClientService
+	clientServiceError    error
+
+	createServiceAccessURLInput auth.CreateServiceAccessURLInput
+	serviceAccessURL            auth.ServiceAccessURLResult
+	serviceAccessURLError       error
 }
 
 func (s *stubAuthService) AdminLogin(_ context.Context, input auth.AdminLoginInput) (auth.LoginResult, error) {
@@ -401,6 +499,21 @@ func (s *stubAuthService) CreateDeviceChallenge(_ context.Context, input auth.Cr
 func (s *stubAuthService) VerifyDeviceChallenge(_ context.Context, input auth.VerifyDeviceChallengeInput) (auth.DeviceChallengeVerificationResult, error) {
 	s.verifyDeviceChallengeInput = input
 	return s.verifyDeviceChallengeResult, s.verifyDeviceChallengeError
+}
+
+func (s *stubAuthService) ListClientServices(_ context.Context, input auth.ListClientServicesInput) ([]auth.ClientService, error) {
+	s.listClientServicesInput = input
+	return s.clientServices, s.clientServicesError
+}
+
+func (s *stubAuthService) GetClientService(_ context.Context, input auth.GetClientServiceInput) (auth.ClientService, error) {
+	s.getClientServiceInput = input
+	return s.clientService, s.clientServiceError
+}
+
+func (s *stubAuthService) CreateServiceAccessURL(_ context.Context, input auth.CreateServiceAccessURLInput) (auth.ServiceAccessURLResult, error) {
+	s.createServiceAccessURLInput = input
+	return s.serviceAccessURL, s.serviceAccessURLError
 }
 
 type apiEnvelope struct {

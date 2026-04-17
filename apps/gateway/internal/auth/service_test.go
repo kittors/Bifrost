@@ -488,6 +488,148 @@ func TestServiceCreateAndVerifyDeviceChallenge(t *testing.T) {
 	}
 }
 
+func TestServiceListClientServicesAppliesRoleAndUserOverrides(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	dsn := createTestDatabase(t, ctx)
+	if err := database.MigrateUp(ctx, dsn); err != nil {
+		t.Fatalf("migrate up: %v", err)
+	}
+
+	db := openDB(t, dsn)
+	now := time.Date(2026, time.April, 17, 13, 30, 0, 0, time.UTC)
+	service := auth.Service{
+		DB:              db,
+		PasswordHasher:  auth.DefaultPasswordHasher(),
+		TokenIssuer:     auth.TokenIssuer{Secret: []byte("0123456789abcdef0123456789abcdef"), TTL: 15 * time.Minute, Now: func() time.Time { return now }},
+		Now:             func() time.Time { return now },
+		RefreshTokenTTL: 7 * 24 * time.Hour,
+		SessionIDFactory: func() (string, error) {
+			return "session_services_01", nil
+		},
+	}
+
+	insertUserWithRoles(t, ctx, db, "user_bob", "bob", "Bob", "correct horse battery staple", []roleSeed{{id: "role_ops", name: "ops", displayName: "Operations"}})
+	insertDevice(t, ctx, db, "device_bob_01", "user_bob", "trusted")
+	insertService(t, ctx, db, "service_jenkins", "jenkins", "Jenkins", "operations", "/s/jenkins", "enabled")
+	insertService(t, ctx, db, "service_docs", "docs", "Docs", "shared", "/s/docs", "enabled")
+	insertRoleService(t, ctx, db, "role_ops", "service_jenkins")
+	insertRoleService(t, ctx, db, "role_ops", "service_docs")
+	insertUserServiceOverride(t, ctx, db, "user_bob", "service_jenkins", "deny")
+
+	loginResult, err := service.ClientLogin(ctx, auth.ClientLoginInput{
+		Username:      "bob",
+		Password:      "correct horse battery staple",
+		DeviceID:      "device_bob_01",
+		ClientVersion: "1.0.0",
+	})
+	if err != nil {
+		t.Fatalf("client login: %v", err)
+	}
+
+	services, err := service.ListClientServices(ctx, auth.ListClientServicesInput{
+		AccessToken: loginResult.AccessToken,
+	})
+	if err != nil {
+		t.Fatalf("list client services: %v", err)
+	}
+
+	if len(services) != 1 {
+		t.Fatalf("expected only 1 accessible service, got %d", len(services))
+	}
+
+	if services[0].ID != "service_docs" {
+		t.Fatalf("expected docs service, got %q", services[0].ID)
+	}
+
+	if services[0].AccessSource != "role" {
+		t.Fatalf("expected role access source, got %q", services[0].AccessSource)
+	}
+}
+
+func TestServiceGetClientServiceAndCreateAccessURLRequireAuthorization(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	dsn := createTestDatabase(t, ctx)
+	if err := database.MigrateUp(ctx, dsn); err != nil {
+		t.Fatalf("migrate up: %v", err)
+	}
+
+	db := openDB(t, dsn)
+	now := time.Date(2026, time.April, 17, 13, 30, 0, 0, time.UTC)
+	service := auth.Service{
+		DB:              db,
+		PasswordHasher:  auth.DefaultPasswordHasher(),
+		TokenIssuer:     auth.TokenIssuer{Secret: []byte("0123456789abcdef0123456789abcdef"), TTL: 15 * time.Minute, Now: func() time.Time { return now }},
+		Now:             func() time.Time { return now },
+		RefreshTokenTTL: 7 * 24 * time.Hour,
+		SessionIDFactory: func() (string, error) {
+			return "session_access_01", nil
+		},
+	}
+
+	insertUserWithRoles(t, ctx, db, "user_alice", "alice", "Alice", "correct horse battery staple", []roleSeed{{id: "role_developer", name: "developer", displayName: "Developer"}})
+	insertDevice(t, ctx, db, "device_alice_02", "user_alice", "trusted")
+	insertService(t, ctx, db, "service_gitlab", "gitlab", "GitLab", "engineering", "/s/gitlab", "enabled")
+	insertService(t, ctx, db, "service_jenkins", "jenkins", "Jenkins", "operations", "/s/jenkins", "enabled")
+	insertRoleService(t, ctx, db, "role_developer", "service_gitlab")
+
+	loginResult, err := service.ClientLogin(ctx, auth.ClientLoginInput{
+		Username:      "alice",
+		Password:      "correct horse battery staple",
+		DeviceID:      "device_alice_02",
+		ClientVersion: "1.0.0",
+	})
+	if err != nil {
+		t.Fatalf("client login: %v", err)
+	}
+
+	detail, err := service.GetClientService(ctx, auth.GetClientServiceInput{
+		AccessToken: loginResult.AccessToken,
+		ServiceID:   "service_gitlab",
+	})
+	if err != nil {
+		t.Fatalf("get client service: %v", err)
+	}
+
+	if detail.Key != "gitlab" {
+		t.Fatalf("expected gitlab service key, got %q", detail.Key)
+	}
+
+	if detail.AccessSource != "role" {
+		t.Fatalf("expected role access source, got %q", detail.AccessSource)
+	}
+
+	accessURL, err := service.CreateServiceAccessURL(ctx, auth.CreateServiceAccessURLInput{
+		AccessToken: loginResult.AccessToken,
+		ServiceID:   "service_gitlab",
+	})
+	if err != nil {
+		t.Fatalf("create access url: %v", err)
+	}
+
+	if accessURL.PublicPath != "/s/gitlab" {
+		t.Fatalf("expected /s/gitlab public path, got %q", accessURL.PublicPath)
+	}
+
+	if accessURL.ExpiresIn != 300 {
+		t.Fatalf("expected expiresIn 300, got %d", accessURL.ExpiresIn)
+	}
+
+	if _, err := service.GetClientService(ctx, auth.GetClientServiceInput{
+		AccessToken: loginResult.AccessToken,
+		ServiceID:   "service_jenkins",
+	}); err == nil {
+		t.Fatal("expected unauthorized service detail lookup to fail")
+	}
+}
+
 type roleSeed struct {
 	id          string
 	name        string
@@ -569,6 +711,55 @@ func insertDeviceWithKey(t *testing.T, ctx context.Context, db *sql.DB, deviceID
 		publicKey,
 	); err != nil {
 		t.Fatalf("update device public key: %v", err)
+	}
+}
+
+func insertService(t *testing.T, ctx context.Context, db *sql.DB, serviceID string, key string, name string, group string, publicPath string, status string) {
+	t.Helper()
+
+	if _, err := db.ExecContext(
+		ctx,
+		`INSERT INTO services (id, key, name, description, group_name, protocol, upstream_url, public_path, status)
+		VALUES ($1, $2, $3, $4, $5, 'http', $6, $7, $8)`,
+		serviceID,
+		key,
+		name,
+		name+" service",
+		group,
+		"http://"+key+":8080",
+		publicPath,
+		status,
+	); err != nil {
+		t.Fatalf("insert service: %v", err)
+	}
+}
+
+func insertRoleService(t *testing.T, ctx context.Context, db *sql.DB, roleID string, serviceID string) {
+	t.Helper()
+
+	if _, err := db.ExecContext(
+		ctx,
+		`INSERT INTO role_services (role_id, service_id)
+		VALUES ($1, $2)`,
+		roleID,
+		serviceID,
+	); err != nil {
+		t.Fatalf("insert role service: %v", err)
+	}
+}
+
+func insertUserServiceOverride(t *testing.T, ctx context.Context, db *sql.DB, userID string, serviceID string, effect string) {
+	t.Helper()
+
+	if _, err := db.ExecContext(
+		ctx,
+		`INSERT INTO user_service_overrides (user_id, service_id, effect, reason, created_by)
+		VALUES ($1, $2, $3, 'test override', $1)`,
+		userID,
+		serviceID,
+		effect,
+	); err != nil {
+		t.Fatalf("insert user service override: %v", err)
 	}
 }
 

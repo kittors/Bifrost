@@ -76,6 +76,22 @@ type VerifyDeviceChallengeInput struct {
 	Signature   string
 }
 
+type ListClientServicesInput struct {
+	AccessToken string
+	Keyword     string
+	Group       string
+}
+
+type GetClientServiceInput struct {
+	AccessToken string
+	ServiceID   string
+}
+
+type CreateServiceAccessURLInput struct {
+	AccessToken string
+	ServiceID   string
+}
+
 type LoginResult struct {
 	AccessToken  string
 	RefreshToken string
@@ -103,6 +119,22 @@ type DeviceChallengeResult struct {
 
 type DeviceChallengeVerificationResult struct {
 	Verified bool
+}
+
+type ClientService struct {
+	ID           string
+	Key          string
+	Name         string
+	Description  string
+	Group        string
+	Status       string
+	PublicPath   string
+	AccessSource string
+}
+
+type ServiceAccessURLResult struct {
+	PublicPath string
+	ExpiresIn  int
 }
 
 type ServiceError struct {
@@ -437,6 +469,101 @@ func (s Service) VerifyDeviceChallenge(ctx context.Context, input VerifyDeviceCh
 	return DeviceChallengeVerificationResult{Verified: true}, nil
 }
 
+func (s Service) ListClientServices(ctx context.Context, input ListClientServicesInput) ([]ClientService, error) {
+	principal, err := s.loadClientPrincipal(ctx, input.AccessToken)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := s.db().QueryContext(
+		ctx,
+		`SELECT id, key, name, description, group_name, status, public_path
+		FROM services
+		WHERE status = 'enabled'
+		ORDER BY name ASC`,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("query services: %w", err)
+	}
+	defer rows.Close()
+
+	var services []ClientService
+	for rows.Next() {
+		var service ClientService
+		if err := rows.Scan(&service.ID, &service.Key, &service.Name, &service.Description, &service.Group, &service.Status, &service.PublicPath); err != nil {
+			return nil, fmt.Errorf("scan service: %w", err)
+		}
+
+		accessSource, allowed, err := s.resolveServiceAccess(ctx, principal.User.ID, principal.User.RoleIDs, service.ID)
+		if err != nil {
+			return nil, err
+		}
+		if !allowed {
+			continue
+		}
+
+		if input.Keyword != "" && !strings.Contains(strings.ToLower(service.Name+" "+service.Key+" "+service.Description), strings.ToLower(input.Keyword)) {
+			continue
+		}
+
+		if input.Group != "" && service.Group != input.Group {
+			continue
+		}
+
+		service.AccessSource = accessSource
+		services = append(services, service)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate services: %w", err)
+	}
+
+	return services, nil
+}
+
+func (s Service) GetClientService(ctx context.Context, input GetClientServiceInput) (ClientService, error) {
+	principal, err := s.loadClientPrincipal(ctx, input.AccessToken)
+	if err != nil {
+		return ClientService{}, err
+	}
+
+	service, err := s.loadService(ctx, input.ServiceID)
+	if err != nil {
+		return ClientService{}, err
+	}
+
+	accessSource, allowed, err := s.resolveServiceAccess(ctx, principal.User.ID, principal.User.RoleIDs, service.ID)
+	if err != nil {
+		return ClientService{}, err
+	}
+	if !allowed {
+		return ClientService{}, &ServiceError{
+			StatusCode:  http.StatusForbidden,
+			Code:        contracts.ErrorCodePolicyAccessDenied,
+			Message:     "user is not allowed to access service",
+			UserMessage: "你没有访问该服务的权限",
+		}
+	}
+
+	service.AccessSource = accessSource
+	return service, nil
+}
+
+func (s Service) CreateServiceAccessURL(ctx context.Context, input CreateServiceAccessURLInput) (ServiceAccessURLResult, error) {
+	service, err := s.GetClientService(ctx, GetClientServiceInput{
+		AccessToken: input.AccessToken,
+		ServiceID:   input.ServiceID,
+	})
+	if err != nil {
+		return ServiceAccessURLResult{}, err
+	}
+
+	return ServiceAccessURLResult{
+		PublicPath: service.PublicPath,
+		ExpiresIn:  300,
+	}, nil
+}
+
 func (s Service) authenticateUser(ctx context.Context, username string, password string) (userRecord, error) {
 	if username == "" || password == "" {
 		return userRecord{}, &ServiceError{
@@ -654,6 +781,11 @@ type deviceKeyRecord struct {
 	PublicKey string
 }
 
+type clientPrincipal struct {
+	Claims AccessTokenClaims
+	User   userRecord
+}
+
 func (s Service) rotateSession(ctx context.Context, user userRecord, session sessionRecord) (LoginResult, error) {
 	refreshToken, err := GenerateRefreshToken()
 	if err != nil {
@@ -866,6 +998,117 @@ func (s Service) loadDeviceKey(ctx context.Context, userID string, deviceID stri
 	}
 
 	return record, nil
+}
+
+func (s Service) loadClientPrincipal(ctx context.Context, accessToken string) (clientPrincipal, error) {
+	claims, err := s.tokenIssuer().VerifyAccessToken(accessToken)
+	if err != nil {
+		return clientPrincipal{}, mapTokenError(err)
+	}
+
+	session, err := s.loadSessionByID(ctx, claims.SessionID)
+	if err != nil {
+		return clientPrincipal{}, err
+	}
+	if session.Status != "active" {
+		return clientPrincipal{}, &ServiceError{
+			StatusCode:  http.StatusUnauthorized,
+			Code:        contracts.ErrorCodeAuthSessionRevoked,
+			Message:     "session is revoked",
+			UserMessage: "当前会话已被管理员终止",
+		}
+	}
+
+	if claims.DeviceID != "" {
+		if err := s.ensureTrustedDevice(ctx, claims.UserID, claims.DeviceID, ""); err != nil {
+			return clientPrincipal{}, err
+		}
+	}
+
+	user, err := s.loadUser(ctx, claims.UserID)
+	if err != nil {
+		return clientPrincipal{}, err
+	}
+
+	return clientPrincipal{Claims: claims, User: user}, nil
+}
+
+func (s Service) loadService(ctx context.Context, serviceID string) (ClientService, error) {
+	row := s.db().QueryRowContext(
+		ctx,
+		`SELECT id, key, name, description, group_name, status, public_path
+		FROM services
+		WHERE id = $1 AND status = 'enabled'`,
+		serviceID,
+	)
+
+	var service ClientService
+	if err := row.Scan(&service.ID, &service.Key, &service.Name, &service.Description, &service.Group, &service.Status, &service.PublicPath); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ClientService{}, &ServiceError{
+				StatusCode:  http.StatusNotFound,
+				Code:        contracts.ErrorCodeServiceNotFound,
+				Message:     "service not found",
+				UserMessage: "服务不存在",
+			}
+		}
+		return ClientService{}, fmt.Errorf("query service: %w", err)
+	}
+
+	return service, nil
+}
+
+func (s Service) resolveServiceAccess(ctx context.Context, userID string, roleIDs []string, serviceID string) (string, bool, error) {
+	row := s.db().QueryRowContext(
+		ctx,
+		`SELECT effect
+		FROM user_service_overrides
+		WHERE user_id = $1 AND service_id = $2`,
+		userID,
+		serviceID,
+	)
+
+	var effect string
+	if err := row.Scan(&effect); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return "", false, fmt.Errorf("query user service override: %w", err)
+	}
+	if effect == "deny" {
+		return "deny", false, nil
+	}
+	if effect == "allow" {
+		return "user", true, nil
+	}
+
+	if len(roleIDs) == 0 {
+		return "", false, nil
+	}
+
+	placeholders := make([]string, 0, len(roleIDs))
+	args := make([]any, 0, len(roleIDs)+1)
+	args = append(args, serviceID)
+	for index, roleID := range roleIDs {
+		placeholders = append(placeholders, fmt.Sprintf("$%d", index+2))
+		args = append(args, roleID)
+	}
+
+	query := fmt.Sprintf(
+		`SELECT EXISTS (
+			SELECT 1
+			FROM role_services
+			WHERE service_id = $1 AND role_id IN (%s)
+		)`,
+		strings.Join(placeholders, ","),
+	)
+
+	var roleAllowed bool
+	if err := s.db().QueryRowContext(ctx, query, args...).Scan(&roleAllowed); err != nil {
+		return "", false, fmt.Errorf("query role service access: %w", err)
+	}
+	if roleAllowed {
+		return "role", true, nil
+	}
+
+	return "", false, nil
 }
 
 func mapTokenError(err error) error {
