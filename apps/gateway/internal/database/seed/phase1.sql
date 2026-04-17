@@ -1,8 +1,8 @@
 INSERT INTO users (id, username, display_name, email, password_hash, status)
 VALUES
-    ('user_admin', 'admin', 'Administrator', 'admin@example.com', 'seed:change-me', 'enabled'),
-    ('user_alice', 'alice', 'Alice', 'alice@example.com', 'seed:change-me', 'enabled'),
-    ('user_bob', 'bob', 'Bob', 'bob@example.com', 'seed:change-me', 'enabled')
+    ('user_admin', 'admin', 'Administrator', 'admin@example.com', '$argon2id$v=19$m=65536,t=3,p=1$EBXTHup76Y9ZElIvzyj4bA$zgnAnGzVAy25rUSG5hJ6iqwB6acoNDGMqsnRLluJbF0', 'enabled'),
+    ('user_alice', 'alice', 'Alice', 'alice@example.com', '$argon2id$v=19$m=65536,t=3,p=1$EBXTHup76Y9ZElIvzyj4bA$zgnAnGzVAy25rUSG5hJ6iqwB6acoNDGMqsnRLluJbF0', 'enabled'),
+    ('user_bob', 'bob', 'Bob', 'bob@example.com', '$argon2id$v=19$m=65536,t=3,p=1$EBXTHup76Y9ZElIvzyj4bA$zgnAnGzVAy25rUSG5hJ6iqwB6acoNDGMqsnRLluJbF0', 'enabled')
 ON CONFLICT (id) DO UPDATE
 SET
     username = EXCLUDED.username,

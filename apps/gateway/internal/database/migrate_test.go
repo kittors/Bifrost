@@ -11,6 +11,7 @@ import (
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 
+	"github.com/kittors/bifrost/apps/gateway/internal/auth"
 	"github.com/kittors/bifrost/apps/gateway/internal/database"
 )
 
@@ -42,6 +43,7 @@ func TestMigrateUpSeedAndDown(t *testing.T) {
 	assertCount(t, ctx, dsn, "services", 3)
 	assertCount(t, ctx, dsn, "users", 3)
 	assertOverrideEffect(t, ctx, dsn, "user_bob", "service_jenkins", "deny")
+	assertSeedPassword(t, ctx, dsn, "user_admin", "ChangeMe123!")
 
 	if err := database.MigrateDownToZero(ctx, dsn); err != nil {
 		t.Fatalf("migrate down to zero: %v", err)
@@ -173,5 +175,31 @@ func assertOverrideEffect(t *testing.T, ctx context.Context, dsn string, userID 
 
 	if effect != expectedEffect {
 		t.Fatalf("expected override effect %s, got %s", expectedEffect, effect)
+	}
+}
+
+func assertSeedPassword(t *testing.T, ctx context.Context, dsn string, userID string, password string) {
+	t.Helper()
+
+	db := openDB(t, dsn)
+
+	var passwordHash string
+	if err := db.QueryRowContext(
+		ctx,
+		`SELECT password_hash
+		FROM users
+		WHERE id = $1`,
+		userID,
+	).Scan(&passwordHash); err != nil {
+		t.Fatalf("query password hash: %v", err)
+	}
+
+	ok, err := auth.DefaultPasswordHasher().Verify(passwordHash, password)
+	if err != nil {
+		t.Fatalf("verify seed password: %v", err)
+	}
+
+	if !ok {
+		t.Fatalf("expected password %q to match seeded hash for %s", password, userID)
 	}
 }

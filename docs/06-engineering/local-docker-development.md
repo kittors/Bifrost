@@ -135,6 +135,10 @@ Mock 服务可以使用轻量 HTTP 服务实现，具体代码在实现阶段再
 | `bob` | `ops` | deny `jenkins` |
 | `admin` | `admin` | 无 |
 
+默认种子密码：
+
+- `admin` / `alice` / `bob` 初始密码统一为 `ChangeMe123!`
+
 ## 7. 联调场景
 
 ## 7.1 正常访问 GitLab

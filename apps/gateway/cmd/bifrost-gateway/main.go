@@ -10,6 +10,7 @@ import (
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 
+	"github.com/kittors/bifrost/apps/gateway/internal/auth"
 	"github.com/kittors/bifrost/apps/gateway/internal/config"
 	"github.com/kittors/bifrost/apps/gateway/internal/server"
 )
@@ -32,14 +33,25 @@ func main() {
 	}
 	defer db.Close()
 
+	authService := auth.Service{
+		DB:             db,
+		PasswordHasher: auth.DefaultPasswordHasher(),
+		TokenIssuer: auth.TokenIssuer{
+			Secret: []byte(cfg.TokenSecret),
+			TTL:    cfg.AccessTokenTTL,
+		},
+		RefreshTokenTTL: cfg.RefreshTokenTTL,
+	}
+
 	app := server.New(server.Options{
 		ReadyCheck: func(ctx context.Context) error {
 			pingCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 			defer cancel()
 			return db.PingContext(pingCtx)
 		},
-		ReadyTime: time.Now().UTC().Format(time.RFC3339),
-		Upstreams: cfg.Upstreams,
+		ReadyTime:   time.Now().UTC().Format(time.RFC3339),
+		Upstreams:   cfg.Upstreams,
+		AuthService: authService,
 	})
 
 	httpServer := &http.Server{
