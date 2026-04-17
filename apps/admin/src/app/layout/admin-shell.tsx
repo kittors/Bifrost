@@ -1,6 +1,15 @@
 import { Button } from "@bifrost/ui";
 import { Link, Outlet, useLocation, useRouter } from "@tanstack/react-router";
-import { MoonStar, Shield, SunMedium, Users } from "lucide-react";
+import {
+  ClipboardList,
+  MonitorSmartphone,
+  MoonStar,
+  ServerCog,
+  Shield,
+  ShieldCheck,
+  SunMedium,
+  Users,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -26,9 +35,22 @@ function applyTheme(theme: ThemeMode) {
 }
 
 const navigationItems = [
-  { icon: Shield, label: "概览", to: "/" },
+  { icon: ShieldCheck, label: "概览", to: "/" },
   { icon: Users, label: "用户", to: "/users" },
+  { icon: Shield, label: "角色", to: "/roles" },
+  { icon: MonitorSmartphone, label: "设备", to: "/devices" },
+  { icon: ServerCog, label: "服务", to: "/services" },
+  { icon: ClipboardList, label: "审计", to: "/audit-events" },
 ] as const;
+
+const pageTitles: Record<string, string> = {
+  "/": "系统概览",
+  "/audit-events": "审计记录",
+  "/devices": "设备管理",
+  "/roles": "角色管理",
+  "/services": "服务目录",
+  "/users": "用户管理",
+};
 
 export function AdminShell() {
   const router = useRouter();
@@ -75,10 +97,6 @@ export function AdminShell() {
                 </Link>
               );
             })}
-
-            <div className="pt-4 text-[12px] leading-[18px] text-text-muted">
-              角色、设备、服务与审计页面正在继续接入。
-            </div>
           </nav>
         </aside>
 
@@ -86,7 +104,7 @@ export function AdminShell() {
           <header className="flex h-[52px] items-center justify-between border-b border-border-soft px-6">
             <div>
               <div className="text-[15px] leading-[22px] font-semibold">
-                {location.pathname === "/users" ? "用户管理" : "系统概览"}
+                {pageTitles[location.pathname] ?? "Bifrost Admin"}
               </div>
             </div>
             <div className="flex items-center gap-2">

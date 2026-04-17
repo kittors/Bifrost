@@ -8,8 +8,12 @@ import {
 } from "@tanstack/react-router";
 
 import { getCurrentAdminSession } from "../features/auth/store";
+import { AuditEventsPage } from "../pages/audit-events-page";
 import { DashboardPage } from "../pages/dashboard-page";
+import { DevicesPage } from "../pages/devices-page";
 import { LoginPage } from "../pages/login-page";
+import { RolesPage } from "../pages/roles-page";
+import { ServicesPage } from "../pages/services-page";
 import { UsersPage } from "../pages/users-page";
 import { AdminShell } from "./layout/admin-shell";
 
@@ -55,9 +59,40 @@ const usersRoute = createRoute({
   component: UsersPage,
 });
 
+const rolesRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/roles",
+  component: RolesPage,
+});
+
+const devicesRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/devices",
+  component: DevicesPage,
+});
+
+const servicesRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/services",
+  component: ServicesPage,
+});
+
+const auditEventsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/audit-events",
+  component: AuditEventsPage,
+});
+
 const routeTree = rootRoute.addChildren([
   loginRoute,
-  appRoute.addChildren([dashboardRoute, usersRoute]),
+  appRoute.addChildren([
+    dashboardRoute,
+    usersRoute,
+    rolesRoute,
+    devicesRoute,
+    servicesRoute,
+    auditEventsRoute,
+  ]),
 ]);
 
 export const router = createRouter({

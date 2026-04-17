@@ -86,6 +86,27 @@ export async function listAdminRoles(input: {
   return unwrapPaginated(payload);
 }
 
+export async function createAdminRole(input: {
+  accessToken: string;
+  description: string;
+  displayName: string;
+  name: string;
+}) {
+  const payload = await requestJSON<AdminRole>({
+    accessToken: input.accessToken,
+    baseURL: getGatewayBaseURL(),
+    body: {
+      description: input.description,
+      displayName: input.displayName,
+      name: input.name,
+    },
+    method: "POST",
+    path: "/api/v1/admin/roles",
+  });
+
+  return payload.data;
+}
+
 export async function listAdminServices(input: {
   accessToken: string;
   group?: string;
@@ -108,6 +129,37 @@ export async function listAdminServices(input: {
   });
 
   return unwrapPaginated(payload);
+}
+
+export async function createAdminService(input: {
+  accessToken: string;
+  description: string;
+  enabled: boolean;
+  group: string;
+  key: string;
+  name: string;
+  protocol: string;
+  publicPath: string;
+  upstreamUrl: string;
+}) {
+  const payload = await requestJSON<AdminService>({
+    accessToken: input.accessToken,
+    baseURL: getGatewayBaseURL(),
+    body: {
+      description: input.description,
+      enabled: input.enabled,
+      group: input.group,
+      key: input.key,
+      name: input.name,
+      protocol: input.protocol,
+      publicPath: input.publicPath,
+      upstreamUrl: input.upstreamUrl,
+    },
+    method: "POST",
+    path: "/api/v1/admin/services",
+  });
+
+  return payload.data;
 }
 
 export async function listAdminDevices(input: {
@@ -154,6 +206,24 @@ export async function listAdminAuditEvents(input: {
   });
 
   return unwrapPaginated(payload);
+}
+
+export async function replaceRoleServices(input: {
+  accessToken: string;
+  roleID: string;
+  serviceIDs: string[];
+}) {
+  const payload = await requestJSON<{ roleId: string; serviceIds: string[] }>({
+    accessToken: input.accessToken,
+    baseURL: getGatewayBaseURL(),
+    body: {
+      serviceIds: input.serviceIDs,
+    },
+    method: "PUT",
+    path: `/api/v1/admin/roles/${input.roleID}/services`,
+  });
+
+  return payload.data;
 }
 
 export function requireAccessToken(session: StoredAdminSession | null) {
