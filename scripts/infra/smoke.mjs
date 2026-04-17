@@ -1,4 +1,6 @@
 const services = ["gitlab", "jenkins", "docs", "internal-admin"];
+const gatewayPort = process.env.BIFROST_DEV_GATEWAY_PORT ?? "8080";
+const adminPort = process.env.BIFROST_DEV_ADMIN_PORT ?? "5173";
 
 async function assertJson(url, predicate, failureMessage) {
   const response = await fetch(url);
@@ -14,20 +16,20 @@ async function assertJson(url, predicate, failureMessage) {
 
 async function main() {
   await assertJson(
-    "http://127.0.0.1:8080/healthz",
+    `http://127.0.0.1:${gatewayPort}/healthz`,
     (payload) => payload.status === "ok",
     "gateway health check failed",
   );
 
   for (const serviceKey of services) {
     await assertJson(
-      `http://127.0.0.1:8080/debug/upstreams/${serviceKey}`,
+      `http://127.0.0.1:${gatewayPort}/debug/upstreams/${serviceKey}`,
       (payload) => payload.serviceKey === serviceKey && payload.upstream?.serviceKey,
       `gateway upstream probe failed for ${serviceKey}`,
     );
   }
 
-  const adminResponse = await fetch("http://127.0.0.1:5173/");
+  const adminResponse = await fetch(`http://127.0.0.1:${adminPort}/`);
   if (!adminResponse.ok) {
     throw new Error(`admin-web not reachable: ${adminResponse.status} ${adminResponse.statusText}`);
   }
