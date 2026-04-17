@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -96,6 +97,14 @@ type APIError struct {
 }
 `;
 
+function formatGoSource(source) {
+  try {
+    return execFileSync("gofmt", { encoding: "utf8", input: source });
+  } catch {
+    return source;
+  }
+}
+
 function writeGeneratedFile(outputPath, nextContent) {
   const currentContent = (() => {
     try {
@@ -118,4 +127,4 @@ function writeGeneratedFile(outputPath, nextContent) {
 }
 
 writeGeneratedFile(tsOutputPath, tsContent);
-writeGeneratedFile(goOutputPath, goContent);
+writeGeneratedFile(goOutputPath, formatGoSource(goContent));

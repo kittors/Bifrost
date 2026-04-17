@@ -20,6 +20,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.12",
+    "tailwindcss": "4.2.2",
     "turbo": "2.9.6",
     "typescript": "6.0.3",
     "vitest": "4.1.4"

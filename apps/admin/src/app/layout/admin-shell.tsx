@@ -1,0 +1,144 @@
+import { Button } from "@bifrost/ui";
+import { Link, Outlet, useLocation, useRouter } from "@tanstack/react-router";
+import { MoonStar, Shield, SunMedium, Users } from "lucide-react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+
+import { adminLogout } from "../../features/auth/api";
+import { useAdminSessionStore } from "../../features/auth/store";
+
+type ThemeMode = "light" | "dark";
+
+const themeStorageKey = "bifrost.admin.theme";
+
+function readTheme(): ThemeMode {
+  if (typeof window === "undefined") {
+    return "light";
+  }
+
+  const stored = window.localStorage.getItem(themeStorageKey);
+  return stored === "dark" ? "dark" : "light";
+}
+
+function applyTheme(theme: ThemeMode) {
+  document.documentElement.setAttribute("data-theme", theme);
+  window.localStorage.setItem(themeStorageKey, theme);
+}
+
+const navigationItems = [
+  { icon: Shield, label: "概览", to: "/" },
+  { icon: Users, label: "用户", to: "/users" },
+] as const;
+
+export function AdminShell() {
+  const router = useRouter();
+  const location = useLocation();
+  const session = useAdminSessionStore((state) => state.session);
+  const clearSession = useAdminSessionStore((state) => state.clearSession);
+  const [theme, setTheme] = useState<ThemeMode>(readTheme);
+
+  useEffect(() => {
+    applyTheme(theme);
+  }, [theme]);
+
+  return (
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,color-mix(in_oklab,var(--bifrost-brand)_10%,transparent),transparent_28%),linear-gradient(180deg,var(--bifrost-bg),color-mix(in_oklab,var(--bifrost-surface)_80%,var(--bifrost-bg)))] text-text-primary">
+      <div className="grid min-h-screen grid-cols-[232px_minmax(0,1fr)]">
+        <aside className="border-r border-border-soft bg-[color-mix(in_oklab,var(--bifrost-surface)_86%,transparent)] px-4 py-5 backdrop-blur-sm">
+          <div className="mb-8 flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-brand-soft text-brand">
+              <Shield className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="text-[14px] leading-[22px] font-semibold">Bifrost</div>
+              <div className="text-[12px] leading-[18px] text-text-secondary">Admin Console</div>
+            </div>
+          </div>
+
+          <nav className="space-y-1.5">
+            {navigationItems.map((item) => {
+              const Icon = item.icon;
+              const active = location.pathname === item.to;
+
+              return (
+                <Link
+                  activeProps={{
+                    className:
+                      "border-brand/20 bg-brand-soft text-brand shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--bifrost-brand)_14%,transparent)]",
+                  }}
+                  className="flex h-10 items-center gap-3 rounded-[10px] border border-transparent px-3 text-[13px] leading-[20px] text-text-secondary transition-colors hover:bg-surface hover:text-text-primary"
+                  key={item.to}
+                  to={item.to}
+                >
+                  <Icon className={`h-4 w-4 ${active ? "text-brand" : ""}`} />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+
+            <div className="pt-4 text-[12px] leading-[18px] text-text-muted">
+              角色、设备、服务与审计页面正在继续接入。
+            </div>
+          </nav>
+        </aside>
+
+        <div className="min-w-0">
+          <header className="flex h-[52px] items-center justify-between border-b border-border-soft px-6">
+            <div>
+              <div className="text-[15px] leading-[22px] font-semibold">
+                {location.pathname === "/users" ? "用户管理" : "系统概览"}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={() => {
+                  setTheme((current) => (current === "light" ? "dark" : "light"));
+                }}
+                size="sm"
+                variant="ghost"
+              >
+                {theme === "light" ? (
+                  <MoonStar className="h-4 w-4" />
+                ) : (
+                  <SunMedium className="h-4 w-4" />
+                )}
+                <span>{theme === "light" ? "Dark" : "Light"}</span>
+              </Button>
+              <div className="rounded-[10px] border border-border bg-surface px-3 py-1.5 text-right">
+                <div className="text-[13px] leading-[20px] font-medium">
+                  {session?.user.displayName}
+                </div>
+                <div className="text-[12px] leading-[18px] text-text-secondary">
+                  {session?.user.username}
+                </div>
+              </div>
+              <Button
+                onClick={async () => {
+                  const accessToken = session?.accessToken;
+                  clearSession();
+                  if (accessToken) {
+                    try {
+                      await adminLogout(accessToken);
+                    } catch {
+                      // Logout is best-effort because local state is already cleared.
+                    }
+                  }
+                  toast.success("管理员会话已退出");
+                  await router.navigate({ to: "/login" });
+                }}
+                size="sm"
+                variant="secondary"
+              >
+                退出
+              </Button>
+            </div>
+          </header>
+
+          <main className="px-6 py-5">
+            <Outlet />
+          </main>
+        </div>
+      </div>
+    </div>
+  );
+}
