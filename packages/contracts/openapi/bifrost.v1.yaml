@@ -3,4 +3,165 @@ info:
   title: Bifrost API
   version: 0.1.0
 paths: {}
-
+components:
+  schemas:
+    ErrorCode:
+      type: string
+      enum:
+        - COMMON_BAD_REQUEST
+        - COMMON_VALIDATION_FAILED
+        - COMMON_NOT_FOUND
+        - COMMON_CONFLICT
+        - COMMON_RATE_LIMITED
+        - COMMON_INTERNAL_ERROR
+        - AUTH_INVALID_CREDENTIALS
+        - AUTH_INVALID_TOKEN
+        - AUTH_REFRESH_TOKEN_INVALID
+        - AUTH_SESSION_EXPIRED
+        - AUTH_SESSION_REVOKED
+        - AUTH_PASSWORD_REQUIRED
+        - AUTH_PASSWORD_TOO_WEAK
+        - USER_DISABLED
+        - USER_NOT_FOUND
+        - USER_ALREADY_EXISTS
+        - USER_CANNOT_DISABLE_SELF
+        - USER_CANNOT_DELETE_SELF
+        - USER_LAST_ADMIN_REQUIRED
+        - ROLE_NOT_FOUND
+        - ROLE_ALREADY_EXISTS
+        - ROLE_IN_USE
+        - ROLE_SYSTEM_ROLE_LOCKED
+        - ROLE_POLICY_INVALID
+        - DEVICE_NOT_FOUND
+        - DEVICE_NOT_TRUSTED
+        - DEVICE_DISABLED
+        - DEVICE_KEY_INVALID
+        - DEVICE_CHALLENGE_EXPIRED
+        - DEVICE_ALREADY_BOUND
+        - DEVICE_LIMIT_EXCEEDED
+        - SERVICE_NOT_FOUND
+        - SERVICE_DISABLED
+        - SERVICE_ALREADY_EXISTS
+        - SERVICE_UPSTREAM_INVALID
+        - SERVICE_UPSTREAM_UNREACHABLE
+        - SERVICE_ROUTE_INVALID
+        - POLICY_ACCESS_DENIED
+        - POLICY_USER_DENIED
+        - POLICY_ROLE_DENIED
+        - POLICY_DEVICE_DENIED
+        - POLICY_RULE_INVALID
+        - AUDIT_EVENT_NOT_FOUND
+        - AUDIT_QUERY_INVALID
+        - AUDIT_EXPORT_TOO_LARGE
+        - GATEWAY_BAD_UPSTREAM
+        - GATEWAY_UPSTREAM_TIMEOUT
+        - GATEWAY_ROUTE_NOT_FOUND
+        - GATEWAY_REQUEST_TOO_LARGE
+    AuditEventType:
+      type: string
+      enum:
+        - auth.login.succeeded
+        - auth.login.failed
+        - auth.logout.succeeded
+        - auth.refresh.succeeded
+        - device.registered
+        - device.challenge.requested
+        - device.challenge.verified
+        - device.disabled
+        - service.access.granted
+        - service.access.denied
+        - service.access.upstream_error
+        - admin.user.created
+        - admin.user.updated
+        - admin.role.updated
+        - admin.service.updated
+    Pagination:
+      type: object
+      additionalProperties: false
+      required:
+        - page
+        - pageSize
+        - total
+        - totalPages
+      properties:
+        page:
+          type: integer
+          minimum: 1
+        pageSize:
+          type: integer
+          minimum: 1
+        total:
+          type: integer
+          minimum: 0
+        totalPages:
+          type: integer
+          minimum: 0
+    ApiMeta:
+      type: object
+      additionalProperties: false
+      required:
+        - requestId
+        - timestamp
+      properties:
+        requestId:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+    ApiError:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - message
+        - userMessage
+        - details
+      properties:
+        code:
+          $ref: "#/components/schemas/ErrorCode"
+        message:
+          type: string
+        userMessage:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+    ApiSuccessEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+        - success
+        - data
+        - meta
+        - error
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: object
+          additionalProperties: true
+        meta:
+          $ref: "#/components/schemas/ApiMeta"
+        error:
+          type: "null"
+    ApiFailureEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+        - success
+        - data
+        - meta
+        - error
+      properties:
+        success:
+          type: boolean
+          const: false
+        data:
+          type: "null"
+        meta:
+          $ref: "#/components/schemas/ApiMeta"
+        error:
+          $ref: "#/components/schemas/ApiError"
