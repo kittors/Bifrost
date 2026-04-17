@@ -416,6 +416,106 @@ func TestClientServiceRoutes(t *testing.T) {
 	}
 }
 
+func TestAdminUserRoutes(t *testing.T) {
+	t.Parallel()
+
+	stub := &stubAuthService{
+		adminUsers: auth.AdminUserListResult{
+			Items: []auth.AdminUser{
+				{
+					ID:          "user_created_01",
+					Username:    "charlie",
+					DisplayName: "Charlie",
+					Email:       "charlie@example.com",
+					Status:      "enabled",
+					Roles:       []string{"role_developer"},
+				},
+			},
+			Pagination: contracts.Pagination{Page: 1, PageSize: 20, Total: 1, TotalPages: 1},
+		},
+		createdAdminUser: auth.AdminUser{
+			ID:          "user_created_01",
+			Username:    "charlie",
+			DisplayName: "Charlie",
+			Email:       "charlie@example.com",
+			Status:      "enabled",
+			Roles:       []string{"role_developer"},
+		},
+		updatedAdminUser: auth.AdminUser{
+			ID:          "user_created_01",
+			Username:    "charlie",
+			DisplayName: "Charles",
+			Email:       "charles@example.com",
+			Status:      "enabled",
+			Roles:       []string{"role_admin"},
+		},
+	}
+
+	app := server.New(server.Options{
+		ReadyCheck: func(ctx context.Context) error {
+			return nil
+		},
+		ReadyTime: "2026-04-17T12:00:00Z",
+		Upstreams: map[string]string{},
+		Now: func() time.Time {
+			return time.Date(2026, time.April, 17, 13, 45, 0, 0, time.UTC)
+		},
+		RequestID: func() string {
+			return "req_admin_user_routes"
+		},
+		AuthService: stub,
+	})
+
+	listRecorder := httptest.NewRecorder()
+	listRequest := httptest.NewRequest(http.MethodGet, "/api/v1/admin/users?page=1&pageSize=20&keyword=charlie", nil)
+	listRequest.Header.Set("Authorization", "Bearer admin-token")
+	app.Handler().ServeHTTP(listRecorder, listRequest)
+
+	if listRecorder.Code != http.StatusOK {
+		t.Fatalf("expected list status 200, got %d", listRecorder.Code)
+	}
+
+	if stub.listAdminUsersInput.Keyword != "charlie" {
+		t.Fatalf("expected list keyword charlie, got %q", stub.listAdminUsersInput.Keyword)
+	}
+
+	createRecorder := httptest.NewRecorder()
+	createRequest := httptest.NewRequest(
+		http.MethodPost,
+		"/api/v1/admin/users",
+		strings.NewReader(`{"username":"charlie","displayName":"Charlie","email":"charlie@example.com","password":"ChangeMe123!","roleIds":["role_developer"]}`),
+	)
+	createRequest.Header.Set("Authorization", "Bearer admin-token")
+	createRequest.Header.Set("Content-Type", "application/json")
+	app.Handler().ServeHTTP(createRecorder, createRequest)
+
+	if createRecorder.Code != http.StatusCreated {
+		t.Fatalf("expected create status 201, got %d", createRecorder.Code)
+	}
+
+	if stub.createAdminUserInput.Username != "charlie" {
+		t.Fatalf("expected create username charlie, got %q", stub.createAdminUserInput.Username)
+	}
+
+	updateRecorder := httptest.NewRecorder()
+	updateRequest := httptest.NewRequest(
+		http.MethodPatch,
+		"/api/v1/admin/users/user_created_01",
+		strings.NewReader(`{"displayName":"Charles","email":"charles@example.com","roleIds":["role_admin"]}`),
+	)
+	updateRequest.Header.Set("Authorization", "Bearer admin-token")
+	updateRequest.Header.Set("Content-Type", "application/json")
+	app.Handler().ServeHTTP(updateRecorder, updateRequest)
+
+	if updateRecorder.Code != http.StatusOK {
+		t.Fatalf("expected update status 200, got %d", updateRecorder.Code)
+	}
+
+	if stub.updateAdminUserInput.UserID != "user_created_01" {
+		t.Fatalf("expected update user id forwarded, got %q", stub.updateAdminUserInput.UserID)
+	}
+}
+
 type stubAuthService struct {
 	adminLoginInput  auth.AdminLoginInput
 	adminLoginResult auth.LoginResult
@@ -459,6 +559,18 @@ type stubAuthService struct {
 	createServiceAccessURLInput auth.CreateServiceAccessURLInput
 	serviceAccessURL            auth.ServiceAccessURLResult
 	serviceAccessURLError       error
+
+	listAdminUsersInput auth.ListAdminUsersInput
+	adminUsers          auth.AdminUserListResult
+	adminUsersError     error
+
+	createAdminUserInput auth.CreateAdminUserInput
+	createdAdminUser     auth.AdminUser
+	createAdminUserError error
+
+	updateAdminUserInput auth.UpdateAdminUserInput
+	updatedAdminUser     auth.AdminUser
+	updateAdminUserError error
 }
 
 func (s *stubAuthService) AdminLogin(_ context.Context, input auth.AdminLoginInput) (auth.LoginResult, error) {
@@ -514,6 +626,21 @@ func (s *stubAuthService) GetClientService(_ context.Context, input auth.GetClie
 func (s *stubAuthService) CreateServiceAccessURL(_ context.Context, input auth.CreateServiceAccessURLInput) (auth.ServiceAccessURLResult, error) {
 	s.createServiceAccessURLInput = input
 	return s.serviceAccessURL, s.serviceAccessURLError
+}
+
+func (s *stubAuthService) ListAdminUsers(_ context.Context, input auth.ListAdminUsersInput) (auth.AdminUserListResult, error) {
+	s.listAdminUsersInput = input
+	return s.adminUsers, s.adminUsersError
+}
+
+func (s *stubAuthService) CreateAdminUser(_ context.Context, input auth.CreateAdminUserInput) (auth.AdminUser, error) {
+	s.createAdminUserInput = input
+	return s.createdAdminUser, s.createAdminUserError
+}
+
+func (s *stubAuthService) UpdateAdminUser(_ context.Context, input auth.UpdateAdminUserInput) (auth.AdminUser, error) {
+	s.updateAdminUserInput = input
+	return s.updatedAdminUser, s.updateAdminUserError
 }
 
 type apiEnvelope struct {

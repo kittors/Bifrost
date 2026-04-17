@@ -45,6 +45,9 @@ type AuthService interface {
 	ListClientServices(ctx context.Context, input auth.ListClientServicesInput) ([]auth.ClientService, error)
 	GetClientService(ctx context.Context, input auth.GetClientServiceInput) (auth.ClientService, error)
 	CreateServiceAccessURL(ctx context.Context, input auth.CreateServiceAccessURLInput) (auth.ServiceAccessURLResult, error)
+	ListAdminUsers(ctx context.Context, input auth.ListAdminUsersInput) (auth.AdminUserListResult, error)
+	CreateAdminUser(ctx context.Context, input auth.CreateAdminUserInput) (auth.AdminUser, error)
+	UpdateAdminUser(ctx context.Context, input auth.UpdateAdminUserInput) (auth.AdminUser, error)
 }
 
 func New(options Options) *App {
@@ -66,6 +69,8 @@ func New(options Options) *App {
 	mux.HandleFunc("/api/v1/admin/auth/refresh", app.handleAdminRefresh)
 	mux.HandleFunc("/api/v1/admin/auth/logout", app.handleLogout)
 	mux.HandleFunc("/api/v1/admin/auth/me", app.handleCurrentUser)
+	mux.HandleFunc("/api/v1/admin/users", app.handleAdminUsers)
+	mux.HandleFunc("/api/v1/admin/users/", app.handleAdminUserByID)
 	mux.HandleFunc("/api/v1/client/auth/login", app.handleClientLogin)
 	mux.HandleFunc("/api/v1/client/auth/refresh", app.handleClientRefresh)
 	mux.HandleFunc("/api/v1/client/auth/logout", app.handleLogout)
@@ -574,6 +579,32 @@ func (a *App) handleClientServices(writer http.ResponseWriter, request *http.Req
 	})
 }
 
+func (a *App) handleAdminUsers(writer http.ResponseWriter, request *http.Request) {
+	switch request.Method {
+	case http.MethodGet:
+		a.handleAdminUserList(writer, request)
+	case http.MethodPost:
+		a.handleAdminUserCreate(writer, request)
+	default:
+		writer.WriteHeader(http.StatusMethodNotAllowed)
+	}
+}
+
+func (a *App) handleAdminUserByID(writer http.ResponseWriter, request *http.Request) {
+	userID, ok := parseAdminUserPath(request.URL.Path)
+	if !ok {
+		writer.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	if request.Method != http.MethodPatch {
+		writer.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	a.handleAdminUserUpdate(writer, request, userID)
+}
+
 func (a *App) handleClientServiceByID(writer http.ResponseWriter, request *http.Request) {
 	serviceID, action, ok := parseClientServicePath(request.URL.Path)
 	if !ok {
@@ -638,6 +669,116 @@ func (a *App) handleClientServiceAccessURL(writer http.ResponseWriter, request *
 	})
 }
 
+func (a *App) handleAdminUserList(writer http.ResponseWriter, request *http.Request) {
+	requestID, timestamp := a.requestMeta(request)
+	token, ok := bearerToken(request)
+	if !ok {
+		a.writeAPIError(writer, requestID, timestamp, missingBearerTokenError())
+		return
+	}
+
+	result, err := a.authService.ListAdminUsers(request.Context(), auth.ListAdminUsersInput{
+		AccessToken: token,
+		Page:        parseIntQuery(request, "page", 1),
+		PageSize:    parseIntQuery(request, "pageSize", 20),
+		Keyword:     strings.TrimSpace(request.URL.Query().Get("keyword")),
+		Status:      strings.TrimSpace(request.URL.Query().Get("status")),
+		RoleID:      strings.TrimSpace(request.URL.Query().Get("roleId")),
+	})
+	if err != nil {
+		a.writeMappedError(writer, requestID, timestamp, err)
+		return
+	}
+
+	items := make([]map[string]any, 0, len(result.Items))
+	for _, user := range result.Items {
+		items = append(items, adminUserPayload(user))
+	}
+
+	a.writeAPISuccessWithPagination(writer, http.StatusOK, requestID, timestamp, map[string]any{
+		"items": items,
+	}, &result.Pagination)
+}
+
+func (a *App) handleAdminUserCreate(writer http.ResponseWriter, request *http.Request) {
+	requestID, timestamp := a.requestMeta(request)
+	token, ok := bearerToken(request)
+	if !ok {
+		a.writeAPIError(writer, requestID, timestamp, missingBearerTokenError())
+		return
+	}
+
+	var payload struct {
+		Username    string   `json:"username"`
+		DisplayName string   `json:"displayName"`
+		Email       string   `json:"email"`
+		Password    string   `json:"password"`
+		RoleIDs     []string `json:"roleIds"`
+	}
+	if err := json.NewDecoder(request.Body).Decode(&payload); err != nil {
+		a.writeAPIError(writer, requestID, timestamp, apiError{
+			statusCode:  http.StatusBadRequest,
+			code:        contracts.ErrorCodeCommonBadRequest,
+			message:     "request body must be valid JSON",
+			userMessage: "请求参数不正确",
+		})
+		return
+	}
+
+	user, err := a.authService.CreateAdminUser(request.Context(), auth.CreateAdminUserInput{
+		AccessToken: token,
+		Username:    payload.Username,
+		DisplayName: payload.DisplayName,
+		Email:       payload.Email,
+		Password:    payload.Password,
+		RoleIDs:     payload.RoleIDs,
+	})
+	if err != nil {
+		a.writeMappedError(writer, requestID, timestamp, err)
+		return
+	}
+
+	a.writeAPISuccess(writer, http.StatusCreated, requestID, timestamp, adminUserPayload(user))
+}
+
+func (a *App) handleAdminUserUpdate(writer http.ResponseWriter, request *http.Request, userID string) {
+	requestID, timestamp := a.requestMeta(request)
+	token, ok := bearerToken(request)
+	if !ok {
+		a.writeAPIError(writer, requestID, timestamp, missingBearerTokenError())
+		return
+	}
+
+	var payload struct {
+		DisplayName string   `json:"displayName"`
+		Email       string   `json:"email"`
+		RoleIDs     []string `json:"roleIds"`
+	}
+	if err := json.NewDecoder(request.Body).Decode(&payload); err != nil {
+		a.writeAPIError(writer, requestID, timestamp, apiError{
+			statusCode:  http.StatusBadRequest,
+			code:        contracts.ErrorCodeCommonBadRequest,
+			message:     "request body must be valid JSON",
+			userMessage: "请求参数不正确",
+		})
+		return
+	}
+
+	user, err := a.authService.UpdateAdminUser(request.Context(), auth.UpdateAdminUserInput{
+		AccessToken: token,
+		UserID:      userID,
+		DisplayName: payload.DisplayName,
+		Email:       payload.Email,
+		RoleIDs:     payload.RoleIDs,
+	})
+	if err != nil {
+		a.writeMappedError(writer, requestID, timestamp, err)
+		return
+	}
+
+	a.writeAPISuccess(writer, http.StatusOK, requestID, timestamp, adminUserPayload(user))
+}
+
 func (a *App) requestMeta(request *http.Request) (string, string) {
 	requestID := strings.TrimSpace(request.Header.Get("X-Request-Id"))
 	if requestID == "" {
@@ -657,6 +798,23 @@ func (a *App) writeAPISuccess(writer http.ResponseWriter, statusCode int, reques
 			"timestamp": timestamp,
 		},
 		"error": nil,
+	})
+}
+
+func (a *App) writeAPISuccessWithPagination(writer http.ResponseWriter, statusCode int, requestID string, timestamp string, data any, pagination *contracts.Pagination) {
+	writer.Header().Set("X-Request-Id", requestID)
+	meta := map[string]any{
+		"requestId": requestID,
+		"timestamp": timestamp,
+	}
+	if pagination != nil {
+		meta["pagination"] = pagination
+	}
+	writeJSON(writer, statusCode, map[string]any{
+		"success": true,
+		"data":    data,
+		"meta":    meta,
+		"error":   nil,
 	})
 }
 
@@ -699,6 +857,17 @@ func clientServicePayload(service auth.ClientService) map[string]any {
 	}
 }
 
+func adminUserPayload(user auth.AdminUser) map[string]any {
+	return map[string]any{
+		"id":          user.ID,
+		"username":    user.Username,
+		"displayName": user.DisplayName,
+		"email":       user.Email,
+		"status":      user.Status,
+		"roles":       user.Roles,
+	}
+}
+
 func parseClientServicePath(path string) (string, string, bool) {
 	remaining := strings.TrimPrefix(path, "/api/v1/client/services/")
 	if remaining == path || remaining == "" {
@@ -715,12 +884,35 @@ func parseClientServicePath(path string) (string, string, bool) {
 	return "", "", false
 }
 
+func parseAdminUserPath(path string) (string, bool) {
+	remaining := strings.TrimPrefix(path, "/api/v1/admin/users/")
+	if remaining == path || remaining == "" {
+		return "", false
+	}
+	if strings.Contains(strings.Trim(remaining, "/"), "/") {
+		return "", false
+	}
+	return strings.Trim(remaining, "/"), true
+}
+
 func absoluteURL(request *http.Request, publicPath string) string {
 	scheme := strings.TrimSpace(request.Header.Get("X-Forwarded-Proto"))
 	if scheme == "" {
 		scheme = "http"
 	}
 	return scheme + "://" + request.Host + strings.TrimRight(publicPath, "/") + "/"
+}
+
+func parseIntQuery(request *http.Request, key string, fallback int) int {
+	value := strings.TrimSpace(request.URL.Query().Get(key))
+	if value == "" {
+		return fallback
+	}
+	var parsed int
+	if _, err := fmt.Sscanf(value, "%d", &parsed); err != nil || parsed <= 0 {
+		return fallback
+	}
+	return parsed
 }
 
 func (a *App) writeMappedError(writer http.ResponseWriter, requestID string, timestamp string, err error) {

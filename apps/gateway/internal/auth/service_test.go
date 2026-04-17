@@ -630,6 +630,110 @@ func TestServiceGetClientServiceAndCreateAccessURLRequireAuthorization(t *testin
 	}
 }
 
+func TestServiceAdminUserListCreateAndUpdate(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	dsn := createTestDatabase(t, ctx)
+	if err := database.MigrateUp(ctx, dsn); err != nil {
+		t.Fatalf("migrate up: %v", err)
+	}
+
+	db := openDB(t, dsn)
+	now := time.Date(2026, time.April, 17, 13, 30, 0, 0, time.UTC)
+	service := auth.Service{
+		DB:              db,
+		PasswordHasher:  auth.DefaultPasswordHasher(),
+		TokenIssuer:     auth.TokenIssuer{Secret: []byte("0123456789abcdef0123456789abcdef"), TTL: 15 * time.Minute, Now: func() time.Time { return now }},
+		Now:             func() time.Time { return now },
+		RefreshTokenTTL: 7 * 24 * time.Hour,
+		SessionIDFactory: func() (string, error) {
+			return "session_admin_users_01", nil
+		},
+		UserIDFactory: func() (string, error) {
+			return "user_created_01", nil
+		},
+	}
+
+	insertUserWithRoles(t, ctx, db, "user_admin", "admin", "Administrator", "correct horse battery staple", []roleSeed{{id: "role_admin", name: "admin", displayName: "Administrator"}})
+	insertRole(t, ctx, db, roleSeed{id: "role_developer", name: "developer", displayName: "Developer"})
+
+	loginResult, err := service.AdminLogin(ctx, auth.AdminLoginInput{
+		Username: "admin",
+		Password: "correct horse battery staple",
+	})
+	if err != nil {
+		t.Fatalf("admin login: %v", err)
+	}
+
+	created, err := service.CreateAdminUser(ctx, auth.CreateAdminUserInput{
+		AccessToken: loginResult.AccessToken,
+		Username:    "charlie",
+		DisplayName: "Charlie",
+		Email:       "charlie@example.com",
+		Password:    "ChangeMe123!",
+		RoleIDs:     []string{"role_developer"},
+	})
+	if err != nil {
+		t.Fatalf("create admin user: %v", err)
+	}
+
+	if created.ID != "user_created_01" {
+		t.Fatalf("expected created user id user_created_01, got %q", created.ID)
+	}
+
+	var passwordHash string
+	if err := db.QueryRowContext(ctx, `SELECT password_hash FROM users WHERE id = $1`, "user_created_01").Scan(&passwordHash); err != nil {
+		t.Fatalf("query created user password hash: %v", err)
+	}
+	ok, err := auth.DefaultPasswordHasher().Verify(passwordHash, "ChangeMe123!")
+	if err != nil {
+		t.Fatalf("verify created user password: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected created user password to verify")
+	}
+
+	updated, err := service.UpdateAdminUser(ctx, auth.UpdateAdminUserInput{
+		AccessToken: loginResult.AccessToken,
+		UserID:      "user_created_01",
+		DisplayName: "Charles",
+		Email:       "charles@example.com",
+		RoleIDs:     []string{"role_admin"},
+	})
+	if err != nil {
+		t.Fatalf("update admin user: %v", err)
+	}
+
+	if updated.DisplayName != "Charles" {
+		t.Fatalf("expected updated display name Charles, got %q", updated.DisplayName)
+	}
+
+	if len(updated.Roles) != 1 || updated.Roles[0] != "role_admin" {
+		t.Fatalf("expected updated role_admin role, got %#v", updated.Roles)
+	}
+
+	list, err := service.ListAdminUsers(ctx, auth.ListAdminUsersInput{
+		AccessToken: loginResult.AccessToken,
+		Page:        1,
+		PageSize:    20,
+		Keyword:     "charles",
+	})
+	if err != nil {
+		t.Fatalf("list admin users: %v", err)
+	}
+
+	if list.Pagination.Total != 1 {
+		t.Fatalf("expected one listed user, got total %d", list.Pagination.Total)
+	}
+
+	if list.Items[0].ID != "user_created_01" {
+		t.Fatalf("expected created user in list, got %q", list.Items[0].ID)
+	}
+}
+
 type roleSeed struct {
 	id          string
 	name        string
@@ -659,16 +763,7 @@ func insertUserWithRoles(t *testing.T, ctx context.Context, db *sql.DB, userID s
 	}
 
 	for _, role := range roles {
-		if _, err := db.ExecContext(
-			ctx,
-			`INSERT INTO roles (id, name, display_name, description, is_system)
-			VALUES ($1, $2, $3, '', true)`,
-			role.id,
-			role.name,
-			role.displayName,
-		); err != nil {
-			t.Fatalf("insert role %s: %v", role.id, err)
-		}
+		insertRole(t, ctx, db, role)
 
 		if _, err := db.ExecContext(
 			ctx,
@@ -678,6 +773,22 @@ func insertUserWithRoles(t *testing.T, ctx context.Context, db *sql.DB, userID s
 		); err != nil {
 			t.Fatalf("insert user role %s: %v", role.id, err)
 		}
+	}
+}
+
+func insertRole(t *testing.T, ctx context.Context, db *sql.DB, role roleSeed) {
+	t.Helper()
+
+	if _, err := db.ExecContext(
+		ctx,
+		`INSERT INTO roles (id, name, display_name, description, is_system)
+		VALUES ($1, $2, $3, '', true)
+		ON CONFLICT (id) DO NOTHING`,
+		role.id,
+		role.name,
+		role.displayName,
+	); err != nil {
+		t.Fatalf("insert role %s: %v", role.id, err)
 	}
 }
 
