@@ -2,7 +2,7 @@ FROM golang:1.26-alpine AS builder
 
 WORKDIR /workspace
 
-COPY apps/gateway/go.mod ./apps/gateway/go.mod
+COPY apps/gateway/go.mod apps/gateway/go.sum ./apps/gateway/
 WORKDIR /workspace/apps/gateway
 RUN go mod download
 

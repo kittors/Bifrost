@@ -149,29 +149,29 @@
 - 测试账号、角色、服务目录可一键初始化
 - 数据模型与文档一致
 
-- [ ] 初始化 Go migration 工具链
-- [ ] 建立 `users` migration
-- [ ] 建立 `roles` migration
-- [ ] 建立 `user_roles` migration
-- [ ] 建立 `devices` migration
-- [ ] 建立 `services` migration
-- [ ] 建立 `role_services` migration
-- [ ] 建立 `user_service_overrides` migration
-- [ ] 建立 `sessions` migration
-- [ ] 建立 `audit_events` migration
-- [ ] 建立 `system_settings` migration
-- [ ] 添加关键索引
-- [ ] 设计 migration 回滚策略
-- [ ] 编写本地种子数据脚本
-- [ ] 创建管理员账号种子数据
-- [ ] 创建 `developer` / `ops` / `admin` 角色种子数据
-- [ ] 创建 `gitlab` / `jenkins` / `docs` 服务种子数据
-- [ ] 创建测试用户 `alice`
-- [ ] 创建测试用户 `bob`
-- [ ] 设置角色服务授权种子数据
-- [ ] 设置 `bob` 的用户级 deny 种子数据
-- [ ] 验证 migration 可从空库成功执行
-- [ ] 验证种子数据脚本幂等
+- [x] 初始化 Go migration 工具链（完成时间：2026-04-17 20:40 CST）
+- [x] 建立 `users` migration（完成时间：2026-04-17 20:40 CST）
+- [x] 建立 `roles` migration（完成时间：2026-04-17 20:40 CST）
+- [x] 建立 `user_roles` migration（完成时间：2026-04-17 20:40 CST）
+- [x] 建立 `devices` migration（完成时间：2026-04-17 20:40 CST）
+- [x] 建立 `services` migration（完成时间：2026-04-17 20:40 CST）
+- [x] 建立 `role_services` migration（完成时间：2026-04-17 20:40 CST）
+- [x] 建立 `user_service_overrides` migration（完成时间：2026-04-17 20:40 CST）
+- [x] 建立 `sessions` migration（完成时间：2026-04-17 20:40 CST）
+- [x] 建立 `audit_events` migration（完成时间：2026-04-17 20:40 CST）
+- [x] 建立 `system_settings` migration（完成时间：2026-04-17 20:40 CST）
+- [x] 添加关键索引（完成时间：2026-04-17 20:40 CST）
+- [x] 设计 migration 回滚策略（完成时间：2026-04-17 20:40 CST）
+- [x] 编写本地种子数据脚本（完成时间：2026-04-17 20:40 CST）
+- [x] 创建管理员账号种子数据（完成时间：2026-04-17 20:40 CST）
+- [x] 创建 `developer` / `ops` / `admin` 角色种子数据（完成时间：2026-04-17 20:40 CST）
+- [x] 创建 `gitlab` / `jenkins` / `docs` 服务种子数据（完成时间：2026-04-17 20:40 CST）
+- [x] 创建测试用户 `alice`（完成时间：2026-04-17 20:40 CST）
+- [x] 创建测试用户 `bob`（完成时间：2026-04-17 20:40 CST）
+- [x] 设置角色服务授权种子数据（完成时间：2026-04-17 20:40 CST）
+- [x] 设置 `bob` 的用户级 deny 种子数据（完成时间：2026-04-17 20:40 CST）
+- [x] 验证 migration 可从空库成功执行（完成时间：2026-04-17 20:40 CST）
+- [x] 验证种子数据脚本幂等（完成时间：2026-04-17 20:40 CST）
 
 ---
 
@@ -471,7 +471,7 @@
 - [x] M1：工程骨架完成（完成时间：2026-04-17 17:43 CST）
 - [x] M2：共享 token 与契约完成（完成时间：2026-04-17 19:30 CST）
 - [x] M3：本地多容器环境完成（完成时间：2026-04-17 20:33 CST）
-- [ ] M4：数据库与种子数据完成
+- [x] M4：数据库与种子数据完成（完成时间：2026-04-17 20:40 CST）
 - [ ] M5：Gateway 核心 API 完成
 - [ ] M6：网关代理闭环完成
 - [ ] M7：后台配置闭环完成
