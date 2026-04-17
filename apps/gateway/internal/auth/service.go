@@ -97,9 +97,10 @@ type CreateServiceAccessURLInput struct {
 }
 
 type ResolveProxyRequestInput struct {
-	AccessToken string
-	RequestID   string
-	ServiceKey  string
+	AccessToken  string
+	AccessTicket string
+	RequestID    string
+	ServiceKey   string
 }
 
 type RecordProxyAccessEventInput struct {
@@ -249,8 +250,9 @@ type ClientService struct {
 }
 
 type ServiceAccessURLResult struct {
-	PublicPath string
-	ExpiresIn  int
+	PublicPath   string
+	ExpiresIn    int
+	AccessTicket string
 }
 
 type ResolveProxyRequestResult struct {
@@ -786,29 +788,91 @@ func (s Service) GetClientService(ctx context.Context, input GetClientServiceInp
 }
 
 func (s Service) CreateServiceAccessURL(ctx context.Context, input CreateServiceAccessURLInput) (ServiceAccessURLResult, error) {
-	service, err := s.GetClientService(ctx, GetClientServiceInput{
-		AccessToken: input.AccessToken,
-		ServiceID:   input.ServiceID,
-	})
+	principal, err := s.loadClientPrincipal(ctx, input.AccessToken)
 	if err != nil {
 		return ServiceAccessURLResult{}, err
 	}
 
+	service, err := s.loadService(ctx, input.ServiceID)
+	if err != nil {
+		return ServiceAccessURLResult{}, err
+	}
+
+	_, allowed, err := s.resolveServiceAccess(ctx, principal.User.ID, principal.User.RoleIDs, service.ID)
+	if err != nil {
+		return ServiceAccessURLResult{}, err
+	}
+	if !allowed {
+		return ServiceAccessURLResult{}, &ServiceError{
+			StatusCode:  http.StatusForbidden,
+			Code:        contracts.ErrorCodePolicyAccessDenied,
+			Message:     "user is not allowed to access service",
+			UserMessage: "你没有访问该服务的权限",
+		}
+	}
+
+	ticketIssuer := s.tokenIssuer()
+	ticketIssuer.TTL = 5 * time.Minute
+	accessTicket, expiresAt, err := ticketIssuer.IssueServiceAccessTicket(ServiceAccessTicketClaims{
+		UserID:    principal.User.ID,
+		DeviceID:  principal.Claims.DeviceID,
+		SessionID: principal.Claims.SessionID,
+		ServiceID: service.ID,
+	})
+	if err != nil {
+		return ServiceAccessURLResult{}, fmt.Errorf("issue service access ticket: %w", err)
+	}
+
 	return ServiceAccessURLResult{
-		PublicPath: service.PublicPath,
-		ExpiresIn:  300,
+		PublicPath:   service.PublicPath,
+		ExpiresIn:    int(expiresAt.Sub(s.now().UTC()).Seconds()),
+		AccessTicket: accessTicket,
 	}, nil
 }
 
 func (s Service) ResolveProxyRequest(ctx context.Context, input ResolveProxyRequestInput) (ResolveProxyRequestResult, error) {
-	principal, err := s.loadClientPrincipal(ctx, input.AccessToken)
+	service, err := s.loadProxyServiceByKey(ctx, input.ServiceKey)
 	if err != nil {
 		return ResolveProxyRequestResult{}, err
 	}
 
-	service, err := s.loadProxyServiceByKey(ctx, input.ServiceKey)
-	if err != nil {
-		return ResolveProxyRequestResult{}, err
+	var principal clientPrincipal
+	if strings.TrimSpace(input.AccessToken) != "" {
+		principal, err = s.loadClientPrincipal(ctx, input.AccessToken)
+		if err != nil {
+			return ResolveProxyRequestResult{}, err
+		}
+	} else if strings.TrimSpace(input.AccessTicket) != "" {
+		ticketClaims, err := s.tokenIssuer().VerifyServiceAccessTicket(input.AccessTicket)
+		if err != nil {
+			return ResolveProxyRequestResult{}, mapTokenError(err)
+		}
+		if ticketClaims.ServiceID != service.ID {
+			return ResolveProxyRequestResult{}, &ServiceError{
+				StatusCode:  http.StatusUnauthorized,
+				Code:        contracts.ErrorCodeAuthInvalidToken,
+				Message:     "service access ticket does not match requested service",
+				UserMessage: "登录状态已失效，请重新登录",
+			}
+		}
+
+		principal, err = s.loadClientPrincipalFromClaims(ctx, AccessTokenClaims{
+			UserID:    ticketClaims.UserID,
+			DeviceID:  ticketClaims.DeviceID,
+			SessionID: ticketClaims.SessionID,
+			IssuedAt:  ticketClaims.IssuedAt,
+			ExpiresAt: ticketClaims.ExpiresAt,
+		})
+		if err != nil {
+			return ResolveProxyRequestResult{}, err
+		}
+	} else {
+		return ResolveProxyRequestResult{}, &ServiceError{
+			StatusCode:  http.StatusUnauthorized,
+			Code:        contracts.ErrorCodeAuthInvalidToken,
+			Message:     "proxy access requires bearer token or service access ticket",
+			UserMessage: "登录状态已失效，请重新登录",
+		}
 	}
 
 	if service.Status != "enabled" {
@@ -1743,6 +1807,11 @@ func (s Service) loadClientPrincipal(ctx context.Context, accessToken string) (c
 	if err != nil {
 		return clientPrincipal{}, mapTokenError(err)
 	}
+
+	return s.loadClientPrincipalFromClaims(ctx, claims)
+}
+
+func (s Service) loadClientPrincipalFromClaims(ctx context.Context, claims AccessTokenClaims) (clientPrincipal, error) {
 
 	session, err := s.loadSessionByID(ctx, claims.SessionID)
 	if err != nil {

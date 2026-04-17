@@ -65,6 +65,27 @@ const server = createServer(async (request, response) => {
   });
 });
 
+server.on("upgrade", (request, socket) => {
+  const url = new URL(request.url ?? "/", `http://${request.headers.host ?? "localhost"}`);
+  if ((request.headers.upgrade ?? "").toLowerCase() !== "websocket") {
+    socket.write("HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n");
+    socket.destroy();
+    return;
+  }
+
+  socket.write(
+    [
+      "HTTP/1.1 101 Switching Protocols",
+      "Connection: Upgrade",
+      "Upgrade: websocket",
+      `X-Mock-Service-Key: ${serviceKey}`,
+      `X-Mock-Service-Path: ${url.pathname}`,
+      "",
+      "",
+    ].join("\r\n"),
+  );
+});
+
 server.listen(port, "0.0.0.0", () => {
   console.log(`${serviceName} listening on ${port}`);
 });

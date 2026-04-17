@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/kittors/bifrost/apps/gateway/internal/auth"
@@ -21,7 +22,10 @@ import (
 
 type contextKey string
 
-const requestIDContextKey contextKey = "request_id"
+const (
+	requestIDContextKey     contextKey = "request_id"
+	serviceAccessCookieName            = "bifrost_access_ticket"
+)
 
 type Options struct {
 	ReadyCheck        func(ctx context.Context) error
@@ -246,19 +250,25 @@ func (a *App) handleServiceProxy(writer http.ResponseWriter, request *http.Reque
 		return
 	}
 
-	token, ok := bearerToken(request)
+	accessToken, accessTicket, ok := proxyCredential(request)
 	if !ok {
 		a.writeAPIError(writer, requestID, timestamp, missingBearerTokenError())
 		return
 	}
 
 	target, err := a.authService.ResolveProxyRequest(request.Context(), auth.ResolveProxyRequestInput{
-		AccessToken: token,
-		RequestID:   requestID,
-		ServiceKey:  serviceKey,
+		AccessToken:  accessToken,
+		AccessTicket: accessTicket,
+		RequestID:    requestID,
+		ServiceKey:   serviceKey,
 	})
 	if err != nil {
 		a.writeMappedError(writer, requestID, timestamp, err)
+		return
+	}
+
+	if isWebSocketUpgrade(request) {
+		a.handleWebSocketProxy(writer, request, target, upstreamPath, requestID, timestamp)
 		return
 	}
 
@@ -301,7 +311,11 @@ func (a *App) handleServiceProxy(writer http.ResponseWriter, request *http.Reque
 	copyProxyHeaders(upstreamRequest.Header, request.Header)
 	upstreamRequest.Header.Set("X-Bifrost-Request-Id", requestID)
 	upstreamRequest.Header.Set("X-Bifrost-Service-Key", target.ServiceKey)
+	upstreamRequest.Header.Set("X-Bifrost-Service-Id", target.ServiceID)
 	upstreamRequest.Header.Set("X-Bifrost-User-Id", target.UserID)
+	if target.DeviceID != "" {
+		upstreamRequest.Header.Set("X-Bifrost-Device-Id", target.DeviceID)
+	}
 	if target.AccessSource != "" {
 		upstreamRequest.Header.Set("X-Bifrost-Access-Source", target.AccessSource)
 	}
@@ -357,6 +371,134 @@ func (a *App) handleServiceProxy(writer http.ResponseWriter, request *http.Reque
 	copyResponseHeaders(writer.Header(), upstreamResponse.Header)
 	writer.WriteHeader(upstreamResponse.StatusCode)
 	_, _ = io.Copy(writer, upstreamResponse.Body)
+}
+
+func (a *App) handleWebSocketProxy(writer http.ResponseWriter, request *http.Request, target auth.ResolveProxyRequestResult, upstreamPath string, requestID string, timestamp string) {
+	targetURL, err := buildUpstreamURL(target.UpstreamURL, upstreamPath, request.URL.RawQuery)
+	if err != nil {
+		a.writeAPIError(writer, requestID, timestamp, apiError{
+			statusCode:  http.StatusBadGateway,
+			code:        contracts.ErrorCodeServiceUpstreamInvalid,
+			message:     err.Error(),
+			userMessage: "服务暂时不可用，请稍后再试",
+		})
+		return
+	}
+
+	hijacker, ok := writer.(http.Hijacker)
+	if !ok {
+		a.writeAPIError(writer, requestID, timestamp, apiError{
+			statusCode:  http.StatusInternalServerError,
+			code:        contracts.ErrorCodeCommonInternalError,
+			message:     "response writer does not support hijacking",
+			userMessage: "服务暂时不可用，请稍后再试",
+		})
+		return
+	}
+
+	upstreamConn, err := a.dialUpstream(request.Context(), targetURL)
+	if err != nil {
+		_ = a.authService.RecordProxyAccessEvent(request.Context(), auth.RecordProxyAccessEventInput{
+			RequestID: requestID,
+			Type:      contracts.AuditEventTypeServiceAccessUpstreamError,
+			UserID:    target.UserID,
+			DeviceID:  target.DeviceID,
+			ServiceID: target.ServiceID,
+			Result:    "failure",
+			Summary:   "websocket upstream dial failed",
+		})
+		if isTimeoutError(err) {
+			a.writeAPIError(writer, requestID, timestamp, apiError{
+				statusCode:  http.StatusGatewayTimeout,
+				code:        contracts.ErrorCodeGatewayUpstreamTimeout,
+				message:     err.Error(),
+				userMessage: "上游服务响应超时",
+			})
+			return
+		}
+		a.writeAPIError(writer, requestID, timestamp, apiError{
+			statusCode:  http.StatusBadGateway,
+			code:        contracts.ErrorCodeGatewayBadUpstream,
+			message:     err.Error(),
+			userMessage: "上游服务暂时不可用",
+		})
+		return
+	}
+
+	upstreamRequest, err := http.NewRequestWithContext(request.Context(), request.Method, targetURL, nil)
+	if err != nil {
+		_ = upstreamConn.Close()
+		a.writeAPIError(writer, requestID, timestamp, apiError{
+			statusCode:  http.StatusBadGateway,
+			code:        contracts.ErrorCodeGatewayBadUpstream,
+			message:     err.Error(),
+			userMessage: "服务暂时不可用，请稍后再试",
+		})
+		return
+	}
+	copyWebSocketHeaders(upstreamRequest.Header, request.Header)
+	upstreamRequest.Host = upstreamRequest.URL.Host
+	upstreamRequest.Header.Set("X-Bifrost-Request-Id", requestID)
+	upstreamRequest.Header.Set("X-Bifrost-Service-Key", target.ServiceKey)
+	upstreamRequest.Header.Set("X-Bifrost-Service-Id", target.ServiceID)
+	upstreamRequest.Header.Set("X-Bifrost-User-Id", target.UserID)
+	if target.DeviceID != "" {
+		upstreamRequest.Header.Set("X-Bifrost-Device-Id", target.DeviceID)
+	}
+
+	if err := upstreamRequest.Write(upstreamConn); err != nil {
+		_ = upstreamConn.Close()
+		a.writeAPIError(writer, requestID, timestamp, apiError{
+			statusCode:  http.StatusBadGateway,
+			code:        contracts.ErrorCodeGatewayBadUpstream,
+			message:     err.Error(),
+			userMessage: "上游服务暂时不可用",
+		})
+		return
+	}
+
+	clientConn, clientBuf, err := hijacker.Hijack()
+	if err != nil {
+		_ = upstreamConn.Close()
+		a.writeAPIError(writer, requestID, timestamp, apiError{
+			statusCode:  http.StatusInternalServerError,
+			code:        contracts.ErrorCodeCommonInternalError,
+			message:     err.Error(),
+			userMessage: "服务暂时不可用，请稍后再试",
+		})
+		return
+	}
+
+	_ = a.authService.RecordProxyAccessEvent(request.Context(), auth.RecordProxyAccessEventInput{
+		RequestID: requestID,
+		Type:      contracts.AuditEventTypeServiceAccessGranted,
+		UserID:    target.UserID,
+		DeviceID:  target.DeviceID,
+		ServiceID: target.ServiceID,
+		Result:    "success",
+		Summary:   "websocket access granted",
+	})
+
+	errCh := make(chan error, 2)
+	var once sync.Once
+	closeConns := func() {
+		_ = clientConn.Close()
+		_ = upstreamConn.Close()
+	}
+
+	go func() {
+		_, copyErr := io.Copy(upstreamConn, clientBuf)
+		once.Do(closeConns)
+		errCh <- copyErr
+	}()
+
+	go func() {
+		_, copyErr := io.Copy(clientConn, upstreamConn)
+		once.Do(closeConns)
+		errCh <- copyErr
+	}()
+
+	<-errCh
 }
 
 func writeJSON(writer http.ResponseWriter, statusCode int, payload any) {
@@ -907,6 +1049,16 @@ func (a *App) handleClientServiceAccessURL(writer http.ResponseWriter, request *
 		return
 	}
 
+	http.SetCookie(writer, &http.Cookie{
+		Name:     serviceAccessCookieName,
+		Value:    result.AccessTicket,
+		Path:     result.PublicPath,
+		MaxAge:   result.ExpiresIn,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Secure:   requestIsSecure(request),
+	})
+
 	a.writeAPISuccess(writer, http.StatusOK, requestID, timestamp, map[string]any{
 		"url":       absoluteURL(request, result.PublicPath),
 		"expiresIn": result.ExpiresIn,
@@ -1414,6 +1566,31 @@ func parseProxyPath(path string) (string, string, bool) {
 	return serviceKey, "/" + parts[1], true
 }
 
+func proxyCredential(request *http.Request) (string, string, bool) {
+	if token, ok := bearerToken(request); ok {
+		return token, "", true
+	}
+
+	cookie, err := request.Cookie(serviceAccessCookieName)
+	if err == nil && strings.TrimSpace(cookie.Value) != "" {
+		return "", strings.TrimSpace(cookie.Value), true
+	}
+
+	return "", "", false
+}
+
+func requestIsSecure(request *http.Request) bool {
+	if request.TLS != nil {
+		return true
+	}
+	return strings.EqualFold(strings.TrimSpace(request.Header.Get("X-Forwarded-Proto")), "https")
+}
+
+func isWebSocketUpgrade(request *http.Request) bool {
+	return strings.EqualFold(strings.TrimSpace(request.Header.Get("Upgrade")), "websocket") &&
+		strings.Contains(strings.ToLower(request.Header.Get("Connection")), "upgrade")
+}
+
 func absoluteURL(request *http.Request, publicPath string) string {
 	scheme := strings.TrimSpace(request.Header.Get("X-Forwarded-Proto"))
 	if scheme == "" {
@@ -1609,6 +1786,28 @@ func (a *App) readProxyBody(writer http.ResponseWriter, request *http.Request) (
 	return io.ReadAll(limitedBody)
 }
 
+func (a *App) dialUpstream(ctx context.Context, rawURL string) (net.Conn, error) {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return nil, fmt.Errorf("parse upstream url: %w", err)
+	}
+
+	port := parsed.Port()
+	if port == "" {
+		switch parsed.Scheme {
+		case "http":
+			port = "80"
+		case "https":
+			port = "443"
+		default:
+			return nil, fmt.Errorf("unsupported websocket upstream scheme %q", parsed.Scheme)
+		}
+	}
+
+	dialer := &net.Dialer{Timeout: a.proxyRequestTimeout()}
+	return dialer.DialContext(ctx, "tcp", net.JoinHostPort(parsed.Hostname(), port))
+}
+
 func (a *App) newRequestID() string {
 	if a.requestID != nil {
 		return a.requestID()
@@ -1641,6 +1840,20 @@ func copyProxyHeaders(target http.Header, source http.Header) {
 		lowerKey := strings.ToLower(key)
 		switch lowerKey {
 		case "authorization", "host", "connection", "proxy-connection", "keep-alive", "te", "trailer", "transfer-encoding", "upgrade":
+			continue
+		}
+
+		for _, value := range values {
+			target.Add(key, value)
+		}
+	}
+}
+
+func copyWebSocketHeaders(target http.Header, source http.Header) {
+	for key, values := range source {
+		lowerKey := strings.ToLower(key)
+		switch lowerKey {
+		case "authorization", "host":
 			continue
 		}
 

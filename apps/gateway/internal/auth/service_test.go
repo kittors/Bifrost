@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -17,6 +18,8 @@ import (
 	"github.com/kittors/bifrost/apps/gateway/internal/auth"
 	"github.com/kittors/bifrost/apps/gateway/internal/database"
 )
+
+var authTestDatabaseCounter uint64
 
 func TestServiceAdminLoginCreatesSession(t *testing.T) {
 	t.Parallel()
@@ -620,6 +623,29 @@ func TestServiceGetClientServiceAndCreateAccessURLRequireAuthorization(t *testin
 
 	if accessURL.ExpiresIn != 300 {
 		t.Fatalf("expected expiresIn 300, got %d", accessURL.ExpiresIn)
+	}
+
+	if accessURL.AccessTicket == "" {
+		t.Fatal("expected short-lived service access ticket")
+	}
+
+	resolvedFromTicket, err := service.ResolveProxyRequest(ctx, auth.ResolveProxyRequestInput{
+		AccessTicket: accessURL.AccessTicket,
+		ServiceKey:   "gitlab",
+	})
+	if err != nil {
+		t.Fatalf("resolve proxy request from service access ticket: %v", err)
+	}
+
+	if resolvedFromTicket.ServiceID != "service_gitlab" {
+		t.Fatalf("expected service_gitlab from ticket, got %q", resolvedFromTicket.ServiceID)
+	}
+
+	if _, err := service.ResolveProxyRequest(ctx, auth.ResolveProxyRequestInput{
+		AccessTicket: accessURL.AccessTicket,
+		ServiceKey:   "jenkins",
+	}); err == nil {
+		t.Fatal("expected service access ticket to be rejected for another service")
 	}
 
 	if _, err := service.GetClientService(ctx, auth.GetClientServiceInput{
@@ -1383,7 +1409,7 @@ func createTestDatabase(t *testing.T, ctx context.Context) string {
 
 	adminDB := openDB(t, adminDSN)
 
-	databaseName := fmt.Sprintf("bifrost_auth_test_%d", time.Now().UnixNano())
+	databaseName := fmt.Sprintf("bifrost_auth_test_%d_%d", time.Now().UnixNano(), atomic.AddUint64(&authTestDatabaseCounter, 1))
 	if _, err := adminDB.ExecContext(ctx, "CREATE DATABASE "+databaseName); err != nil {
 		t.Fatalf("create database %s: %v", databaseName, err)
 	}

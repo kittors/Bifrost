@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -14,6 +15,8 @@ import (
 	"github.com/kittors/bifrost/apps/gateway/internal/auth"
 	"github.com/kittors/bifrost/apps/gateway/internal/database"
 )
+
+var databaseTestDatabaseCounter uint64
 
 func TestMigrateUpSeedAndDown(t *testing.T) {
 	t.Parallel()
@@ -63,7 +66,7 @@ func createTestDatabase(t *testing.T, ctx context.Context) string {
 
 	adminDB := openDB(t, adminDSN)
 
-	databaseName := fmt.Sprintf("bifrost_test_%d", time.Now().UnixNano())
+	databaseName := fmt.Sprintf("bifrost_test_%d_%d", time.Now().UnixNano(), atomic.AddUint64(&databaseTestDatabaseCounter, 1))
 	if _, err := adminDB.ExecContext(ctx, "CREATE DATABASE "+databaseName); err != nil {
 		t.Fatalf("create database %s: %v", databaseName, err)
 	}

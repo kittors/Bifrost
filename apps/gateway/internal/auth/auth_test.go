@@ -110,6 +110,40 @@ func TestTokenIssuerIssueAndVerifyAccessToken(t *testing.T) {
 	}
 }
 
+func TestTokenIssuerIssueAndVerifyServiceAccessTicket(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, time.April, 17, 13, 30, 0, 0, time.UTC)
+	issuer := auth.TokenIssuer{
+		Secret: []byte("0123456789abcdef0123456789abcdef"),
+		TTL:    5 * time.Minute,
+		Now:    func() time.Time { return now },
+	}
+
+	token, expiresAt, err := issuer.IssueServiceAccessTicket(auth.ServiceAccessTicketClaims{
+		UserID:    "user_alice",
+		DeviceID:  "device_alice_01",
+		SessionID: "session_alice_01",
+		ServiceID: "service_gitlab",
+	})
+	if err != nil {
+		t.Fatalf("issue service access ticket: %v", err)
+	}
+
+	if expiresAt != now.Add(5*time.Minute) {
+		t.Fatalf("expected expiry %s, got %s", now.Add(5*time.Minute), expiresAt)
+	}
+
+	claims, err := issuer.VerifyServiceAccessTicket(token)
+	if err != nil {
+		t.Fatalf("verify service access ticket: %v", err)
+	}
+
+	if claims.ServiceID != "service_gitlab" || claims.UserID != "user_alice" || claims.DeviceID != "device_alice_01" {
+		t.Fatalf("unexpected service ticket claims: %#v", claims)
+	}
+}
+
 func TestTokenIssuerAllowsAdminAccessTokenWithoutDeviceID(t *testing.T) {
 	t.Parallel()
 

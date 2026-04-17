@@ -355,8 +355,9 @@ func TestClientServiceRoutes(t *testing.T) {
 			AccessSource: "role",
 		},
 		serviceAccessURL: auth.ServiceAccessURLResult{
-			PublicPath: "/s/gitlab",
-			ExpiresIn:  300,
+			PublicPath:   "/s/gitlab",
+			ExpiresIn:    300,
+			AccessTicket: "ticket_gitlab_01",
 		},
 	}
 
@@ -413,6 +414,35 @@ func TestClientServiceRoutes(t *testing.T) {
 
 	if stub.createServiceAccessURLInput.ServiceID != "service_gitlab" {
 		t.Fatalf("expected access-url service id forwarded, got %q", stub.createServiceAccessURLInput.ServiceID)
+	}
+
+	cookie := accessRecorder.Result().Cookies()
+	if len(cookie) != 1 {
+		t.Fatalf("expected one access cookie, got %d", len(cookie))
+	}
+	if cookie[0].Name != "bifrost_access_ticket" || cookie[0].Value != "ticket_gitlab_01" {
+		t.Fatalf("unexpected access cookie: %#v", cookie[0])
+	}
+	if cookie[0].Path != "/s/gitlab" || !cookie[0].HttpOnly {
+		t.Fatalf("expected HttpOnly cookie scoped to service path, got %#v", cookie[0])
+	}
+	if cookie[0].SameSite != http.SameSiteLaxMode {
+		t.Fatalf("expected SameSite=Lax, got %v", cookie[0].SameSite)
+	}
+	if cookie[0].Secure {
+		t.Fatal("expected non-secure cookie on plain http request")
+	}
+
+	secureRecorder := httptest.NewRecorder()
+	secureRequest := httptest.NewRequest(http.MethodPost, "/api/v1/client/services/service_gitlab/access-url", nil)
+	secureRequest.Header.Set("Authorization", "Bearer access-token")
+	secureRequest.Header.Set("X-Forwarded-Proto", "https")
+	secureRequest.Host = "bifrost.example.com"
+	app.Handler().ServeHTTP(secureRecorder, secureRequest)
+
+	secureCookies := secureRecorder.Result().Cookies()
+	if len(secureCookies) != 1 || !secureCookies[0].Secure {
+		t.Fatalf("expected secure cookie on forwarded https request, got %#v", secureCookies)
 	}
 }
 

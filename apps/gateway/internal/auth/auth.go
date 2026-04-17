@@ -88,6 +88,15 @@ type AccessTokenClaims struct {
 	ExpiresAt         time.Time
 }
 
+type ServiceAccessTicketClaims struct {
+	UserID    string
+	DeviceID  string
+	SessionID string
+	ServiceID string
+	IssuedAt  time.Time
+	ExpiresAt time.Time
+}
+
 type TokenIssuer struct {
 	Secret []byte
 	TTL    time.Duration
@@ -151,6 +160,63 @@ func (i TokenIssuer) VerifyAccessToken(token string) (AccessTokenClaims, error) 
 	}, nil
 }
 
+func (i TokenIssuer) IssueServiceAccessTicket(claims ServiceAccessTicketClaims) (string, time.Time, error) {
+	if len(i.Secret) == 0 {
+		return "", time.Time{}, errors.New("token secret is required")
+	}
+
+	now := i.now().UTC()
+	expiresAt := now.Add(i.ttl())
+
+	payload := accessTokenPayload{
+		Type:      "service_access",
+		Subject:   claims.UserID,
+		UserID:    claims.UserID,
+		DeviceID:  claims.DeviceID,
+		SessionID: claims.SessionID,
+		ServiceID: claims.ServiceID,
+		IssuedAt:  now.Unix(),
+		ExpiresAt: expiresAt.Unix(),
+	}
+
+	token, err := signToken(i.Secret, payload)
+	if err != nil {
+		return "", time.Time{}, err
+	}
+
+	return token, expiresAt, nil
+}
+
+func (i TokenIssuer) VerifyServiceAccessTicket(token string) (ServiceAccessTicketClaims, error) {
+	if len(i.Secret) == 0 {
+		return ServiceAccessTicketClaims{}, errors.New("token secret is required")
+	}
+
+	payload, err := verifyToken(i.Secret, token)
+	if err != nil {
+		return ServiceAccessTicketClaims{}, err
+	}
+
+	if payload.Type != "service_access" || payload.ServiceID == "" {
+		return ServiceAccessTicketClaims{}, ErrInvalidToken
+	}
+
+	now := i.now().UTC()
+	expiresAt := time.Unix(payload.ExpiresAt, 0).UTC()
+	if now.After(expiresAt) {
+		return ServiceAccessTicketClaims{}, ErrExpiredToken
+	}
+
+	return ServiceAccessTicketClaims{
+		UserID:    payload.UserID,
+		DeviceID:  payload.DeviceID,
+		SessionID: payload.SessionID,
+		ServiceID: payload.ServiceID,
+		IssuedAt:  time.Unix(payload.IssuedAt, 0).UTC(),
+		ExpiresAt: expiresAt,
+	}, nil
+}
+
 func GenerateRefreshToken() (string, error) {
 	random := make([]byte, refreshTokenLength)
 	if _, err := rand.Read(random); err != nil {
@@ -185,6 +251,7 @@ type accessTokenPayload struct {
 	UserID            string `json:"uid"`
 	DeviceID          string `json:"did"`
 	SessionID         string `json:"sid"`
+	ServiceID         string `json:"svc,omitempty"`
 	PermissionVersion int    `json:"pv"`
 	IssuedAt          int64  `json:"iat"`
 	ExpiresAt         int64  `json:"exp"`
