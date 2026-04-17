@@ -1,0 +1,16 @@
+.DS_Store
+node_modules/
+dist/
+build/
+coverage/
+.turbo/
+.pnpm-store/
+*.log
+
+.env
+.env.*
+!.env.example
+
+apps/gateway/bin/
+apps/gateway/tmp/
+

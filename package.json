@@ -1,0 +1,19 @@
+{
+  "name": "bifrost",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "test": "turbo test",
+    "check": "turbo check",
+    "format": "biome format --write .",
+    "lint": "biome check ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.4.12",
+    "turbo": "2.9.6",
+    "typescript": "6.0.3"
+  }
+}

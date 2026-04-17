@@ -1,0 +1,16 @@
+{
+  "name": "@bifrost/design-tokens",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./app.css": "./src/app.css",
+    "./base.css": "./src/base.css",
+    "./theme.css": "./src/theme.css"
+  },
+  "scripts": {
+    "build": "echo \"design tokens are CSS assets\"",
+    "check": "echo \"design tokens check pending\"",
+    "test": "echo \"design tokens tests pending\""
+  }
+}

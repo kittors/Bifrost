@@ -1,0 +1,22 @@
+{
+  "name": "@bifrost/desktop",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "check": "tsc --noEmit",
+    "dev": "echo \"desktop dev server pending\"",
+    "test": "echo \"desktop tests pending\""
+  },
+  "dependencies": {
+    "@bifrost/contracts": "workspace:*",
+    "@bifrost/design-tokens": "workspace:*",
+    "@bifrost/ui": "workspace:*"
+  },
+  "devDependencies": {
+    "@bifrost/config-typescript": "workspace:*",
+    "@types/node": "25.6.0",
+    "typescript": "6.0.3"
+  }
+}

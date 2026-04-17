@@ -1,0 +1,10 @@
+{
+  "name": "@bifrost/config-typescript",
+  "version": "0.0.0",
+  "private": true,
+  "files": [
+    "base.json",
+    "react.json",
+    "electron.json"
+  ]
+}
