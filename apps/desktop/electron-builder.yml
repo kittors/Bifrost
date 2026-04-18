@@ -27,6 +27,7 @@ nsis:
   allowToChangeInstallationDirectory: true
 linux:
   category: Utility
+  maintainer: "Kittors <14817208+kittors@users.noreply.github.com>"
   target:
     - AppImage
     - deb

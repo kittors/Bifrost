@@ -100,13 +100,20 @@ test("desktop package scripts cover macOS Windows and Linux installers", () => {
   const desktopPackageJson = JSON.parse(
     readFileSync(new URL("../../apps/desktop/package.json", import.meta.url), "utf8"),
   );
+  const desktopBuilderConfig = readFileSync(
+    new URL("../../apps/desktop/electron-builder.yml", import.meta.url),
+    "utf8",
+  );
 
   assert.equal(desktopPackageJson.devDependencies["electron-builder"], "26.8.1");
   assert.ok(desktopPackageJson.main, "desktop main entry is required for electron-builder");
+  assert.match(desktopPackageJson.homepage, /^https:\/\/github\.com\/kittors\/Bifrost/);
+  assert.equal(desktopPackageJson.author.email, "14817208+kittors@users.noreply.github.com");
   assert.equal(typeof desktopPackageJson.scripts["dist:mac"], "string");
   assert.equal(typeof desktopPackageJson.scripts["dist:win"], "string");
   assert.equal(typeof desktopPackageJson.scripts["dist:linux"], "string");
   assert.equal(typeof desktopPackageJson.scripts["dist:dir"], "string");
+  assert.match(desktopBuilderConfig, /maintainer:\s*"Kittors <14817208\+kittors@users\.noreply\.github\.com>"/);
 });
 
 test("github actions workflows exist for CI gate and desktop artifacts", () => {
@@ -132,8 +139,11 @@ test("github actions workflows exist for CI gate and desktop artifacts", () => {
     assert.match(ciWorkflow, new RegExp(command.replaceAll(" ", "\\s+")));
   }
   assert.match(ciWorkflow, /go test \.\/\.\.\./);
+  assert.match(ciWorkflow, /FORCE_JAVASCRIPT_ACTIONS_TO_NODE24:\s*"true"/);
+  assert.match(ciWorkflow, /cache-dependency-path:\s*apps\/gateway\/go\.sum/);
   assert.match(ciWorkflow, /test-results\/playwright/);
   assert.match(ciWorkflow, /retention-days:\s*7/);
+  assert.match(desktopWorkflow, /FORCE_JAVASCRIPT_ACTIONS_TO_NODE24:\s*"true"/);
 
   for (const osName of ["macos-latest", "windows-latest", "ubuntu-latest"]) {
     assert.match(desktopWorkflow, new RegExp(osName));

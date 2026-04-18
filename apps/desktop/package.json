@@ -2,18 +2,22 @@
   "name": "@bifrost/desktop",
   "version": "0.0.0",
   "description": "Bifrost desktop client",
+  "homepage": "https://github.com/kittors/Bifrost",
   "main": "out/main/index.js",
   "private": true,
   "type": "module",
-  "author": "Kittors",
+  "author": {
+    "name": "Kittors",
+    "email": "14817208+kittors@users.noreply.github.com"
+  },
   "scripts": {
     "build": "electron-vite build && tsc --noEmit",
     "check": "tsc --noEmit",
     "dev": "electron-vite dev",
-    "dist:dir": "electron-builder --config electron-builder.yml --dir",
-    "dist:linux": "electron-builder --config electron-builder.yml --linux AppImage deb tar.gz",
-    "dist:mac": "electron-builder --config electron-builder.yml --mac dmg zip",
-    "dist:win": "electron-builder --config electron-builder.yml --win nsis",
+    "dist:dir": "electron-builder --config electron-builder.yml --publish never --dir",
+    "dist:linux": "electron-builder --config electron-builder.yml --publish never --linux AppImage deb tar.gz",
+    "dist:mac": "electron-builder --config electron-builder.yml --publish never --mac dmg zip",
+    "dist:win": "electron-builder --config electron-builder.yml --publish never --win nsis",
     "test": "vitest run"
   },
   "dependencies": {
