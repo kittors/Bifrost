@@ -234,7 +234,7 @@ git commit -m "feat: add admin service and device control endpoints"
 - Create: `apps/admin/src/features/admin-devices/device-detail-drawer.tsx`
 - Create: `apps/admin/src/features/admin-devices/device-status-action.tsx`
 
-- [ ] **Step 1: Extend API layer with exact response shapes**
+- [x] **Step 1: Extend API layer with exact response shapes**
 
 ```ts
 export async function getAdminUser(...) { ... }
@@ -247,7 +247,7 @@ export async function getAdminDevice(...) { ... }
 export async function setAdminDeviceStatus(...) { ... }
 ```
 
-- [ ] **Step 2: Add failing API tests**
+- [x] **Step 2: Add failing API tests**
 
 ```ts
 it("calls reset admin user password endpoint", async () => { ... });
@@ -255,7 +255,7 @@ it("calls update admin service endpoint", async () => { ... });
 it("calls set admin device status endpoint", async () => { ... });
 ```
 
-- [ ] **Step 3: Build focused feature components with compact actions**
+- [x] **Step 3: Build focused feature components with compact actions**
 
 ```tsx
 <UserDetailDrawer userId={selectedUserId} />
@@ -264,7 +264,7 @@ it("calls set admin device status endpoint", async () => { ... });
 <DeviceDetailDrawer deviceId={selectedDeviceId} />
 ```
 
-- [ ] **Step 4: Keep page files orchestration-only**
+- [x] **Step 4: Keep page files orchestration-only**
 
 ```tsx
 const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
@@ -272,7 +272,7 @@ const [selectedService, setSelectedService] = useState<AdminService | null>(null
 const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
 ```
 
-- [ ] **Step 5: Run frontend verification**
+- [x] **Step 5: Run frontend verification**
 
 Run: `pnpm --filter @bifrost/admin test`
 

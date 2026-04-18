@@ -3,6 +3,7 @@ import { useState } from "react";
 
 import { listAdminRoles, listAdminUsers, requireAccessToken } from "../entities/admin/api";
 import { CreateUserDialog } from "../features/admin-users/create-user-dialog";
+import { UserDetailDrawer } from "../features/admin-users/user-detail-drawer";
 import { UsersFilterBar } from "../features/admin-users/users-filter-bar";
 import { UsersTable } from "../features/admin-users/users-table";
 import { getCurrentAdminSession } from "../features/auth/store";
@@ -15,6 +16,7 @@ export function UsersPage() {
   const [keyword, setKeyword] = useState("");
   const [status, setStatus] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
+  const [selectedUserID, setSelectedUserID] = useState<string | null>(null);
 
   const usersQuery = useQuery({
     queryFn: () =>
@@ -76,8 +78,28 @@ export function UsersPage() {
           正在加载用户列表...
         </div>
       ) : (
-        <UsersTable keyword={keyword} rows={userRows} status={status} totalUsers={totalUsers} />
+        <UsersTable
+          keyword={keyword}
+          onOpenDetails={setSelectedUserID}
+          rows={userRows}
+          status={status}
+          totalUsers={totalUsers}
+        />
       )}
+
+      <UserDetailDrawer
+        accessToken={accessToken}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedUserID(null);
+          }
+        }}
+        onUpdated={async () => {
+          await queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+        }}
+        open={Boolean(selectedUserID)}
+        userID={selectedUserID}
+      />
     </div>
   );
 }

@@ -1,14 +1,23 @@
-import { EmptyState, Table } from "@bifrost/ui";
+import { Button, EmptyState, Table } from "@bifrost/ui";
 
 import type { AdminService } from "../../entities/admin/types";
 import { StatusBadge } from "../../shared/ui/status-badge";
 
 type ServicesTableProps = {
+  onEdit: (service: AdminService) => void;
+  onToggleStatus: (service: AdminService) => Promise<void>;
+  pendingServiceID: string | null;
   rows: AdminService[];
   totalServices: number;
 };
 
-export function ServicesTable({ rows, totalServices }: ServicesTableProps) {
+export function ServicesTable({
+  onEdit,
+  onToggleStatus,
+  pendingServiceID,
+  rows,
+  totalServices,
+}: ServicesTableProps) {
   const caption = `当前共有 ${totalServices} 个服务`;
 
   return (
@@ -25,6 +34,7 @@ export function ServicesTable({ rows, totalServices }: ServicesTableProps) {
               <Table.Head>服务</Table.Head>
               <Table.Head>上游地址</Table.Head>
               <Table.Head>状态</Table.Head>
+              <Table.Head className="text-right">操作</Table.Head>
             </Table.Row>
           </Table.Header>
           <Table.Body>
@@ -41,6 +51,33 @@ export function ServicesTable({ rows, totalServices }: ServicesTableProps) {
                 <Table.Cell>{service.upstreamUrl}</Table.Cell>
                 <Table.Cell>
                   <StatusBadge status={service.status} />
+                </Table.Cell>
+                <Table.Cell className="text-right">
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      onClick={() => {
+                        onEdit(service);
+                      }}
+                      size="sm"
+                      variant="ghost"
+                    >
+                      编辑
+                    </Button>
+                    <Button
+                      disabled={pendingServiceID === service.id}
+                      onClick={async () => {
+                        await onToggleStatus(service);
+                      }}
+                      size="sm"
+                      variant={service.status === "enabled" ? "danger" : "secondary"}
+                    >
+                      {pendingServiceID === service.id
+                        ? "处理中..."
+                        : service.status === "enabled"
+                          ? "禁用"
+                          : "启用"}
+                    </Button>
+                  </div>
                 </Table.Cell>
               </Table.Row>
             ))}

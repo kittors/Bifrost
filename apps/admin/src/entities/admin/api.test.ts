@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createAdminRole, createAdminService, replaceRoleServices } from "./api";
+import {
+  createAdminRole,
+  createAdminService,
+  replaceRoleServices,
+  resetAdminUserPassword,
+  setAdminDeviceStatus,
+  updateAdminService,
+} from "./api";
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -159,6 +166,143 @@ describe("admin entity api helpers", () => {
           "Content-Type": "application/json",
         }),
         method: "PUT",
+      }),
+    );
+  });
+
+  it("resets an admin user password through the gateway API", async () => {
+    const fetchMock = vi.fn(async () =>
+      jsonResponse({
+        data: {
+          reset: true,
+        },
+        error: null,
+        meta: {
+          requestId: "req_reset_password_01",
+          timestamp: "2026-04-18T00:12:00Z",
+        },
+        success: true,
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await resetAdminUserPassword({
+      accessToken: "access_01",
+      password: "NewPassword123!",
+      userID: "user_alice",
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:8080/api/v1/admin/users/user_alice/reset-password",
+      expect.objectContaining({
+        body: JSON.stringify({
+          password: "NewPassword123!",
+        }),
+        headers: expect.objectContaining({
+          Authorization: "Bearer access_01",
+          "Content-Type": "application/json",
+        }),
+        method: "POST",
+      }),
+    );
+  });
+
+  it("updates an admin service through the gateway API", async () => {
+    const fetchMock = vi.fn(async () =>
+      jsonResponse({
+        data: {
+          description: "共享文档",
+          group: "shared",
+          id: "service_docs",
+          key: "docs",
+          name: "Docs Portal",
+          protocol: "http",
+          publicPath: "/s/docs",
+          status: "enabled",
+          upstreamUrl: "http://mock-docs:8080",
+        },
+        error: null,
+        meta: {
+          requestId: "req_service_update_01",
+          timestamp: "2026-04-18T00:13:00Z",
+        },
+        success: true,
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const service = await updateAdminService({
+      accessToken: "access_01",
+      description: "共享文档",
+      group: "shared",
+      name: "Docs Portal",
+      protocol: "http",
+      publicPath: "/s/docs",
+      serviceID: "service_docs",
+      upstreamUrl: "http://mock-docs:8080",
+    });
+
+    expect(service.name).toBe("Docs Portal");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:8080/api/v1/admin/services/service_docs",
+      expect.objectContaining({
+        body: JSON.stringify({
+          description: "共享文档",
+          group: "shared",
+          name: "Docs Portal",
+          protocol: "http",
+          publicPath: "/s/docs",
+          upstreamUrl: "http://mock-docs:8080",
+        }),
+        headers: expect.objectContaining({
+          Authorization: "Bearer access_01",
+          "Content-Type": "application/json",
+        }),
+        method: "PATCH",
+      }),
+    );
+  });
+
+  it("sets an admin device status through the gateway API", async () => {
+    const fetchMock = vi.fn(async () =>
+      jsonResponse({
+        data: {
+          clientVersion: "1.0.0",
+          id: "device_01",
+          name: "Alice Mac",
+          os: "macOS",
+          publicKeyFingerprint: "fp_01",
+          status: "disabled",
+          userId: "user_alice",
+          userUsername: "alice",
+        },
+        error: null,
+        meta: {
+          requestId: "req_device_status_01",
+          timestamp: "2026-04-18T00:14:00Z",
+        },
+        success: true,
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await setAdminDeviceStatus({
+      accessToken: "access_01",
+      deviceID: "device_01",
+      status: "disabled",
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:8080/api/v1/admin/devices/device_01/status",
+      expect.objectContaining({
+        body: JSON.stringify({
+          status: "disabled",
+        }),
+        headers: expect.objectContaining({
+          Authorization: "Bearer access_01",
+          "Content-Type": "application/json",
+        }),
+        method: "POST",
       }),
     );
   });

@@ -66,6 +66,52 @@ export async function createAdminUser(input: {
   return payload.data;
 }
 
+export async function getAdminUser(input: { accessToken: string; userID: string }) {
+  const payload = await requestJSON<AdminUser>({
+    accessToken: input.accessToken,
+    baseURL: getGatewayBaseURL(),
+    path: `/api/v1/admin/users/${input.userID}`,
+  });
+
+  return payload.data;
+}
+
+export async function resetAdminUserPassword(input: {
+  accessToken: string;
+  password: string;
+  userID: string;
+}) {
+  const payload = await requestJSON<{ reset: boolean }>({
+    accessToken: input.accessToken,
+    baseURL: getGatewayBaseURL(),
+    body: {
+      password: input.password,
+    },
+    method: "POST",
+    path: `/api/v1/admin/users/${input.userID}/reset-password`,
+  });
+
+  return payload.data;
+}
+
+export async function setAdminUserStatus(input: {
+  accessToken: string;
+  status: string;
+  userID: string;
+}) {
+  const payload = await requestJSON<AdminUser>({
+    accessToken: input.accessToken,
+    baseURL: getGatewayBaseURL(),
+    body: {
+      status: input.status,
+    },
+    method: "POST",
+    path: `/api/v1/admin/users/${input.userID}/status`,
+  });
+
+  return payload.data;
+}
+
 export async function listAdminRoles(input: {
   accessToken: string;
   keyword?: string;
@@ -162,6 +208,62 @@ export async function createAdminService(input: {
   return payload.data;
 }
 
+export async function getAdminService(input: { accessToken: string; serviceID: string }) {
+  const payload = await requestJSON<AdminService>({
+    accessToken: input.accessToken,
+    baseURL: getGatewayBaseURL(),
+    path: `/api/v1/admin/services/${input.serviceID}`,
+  });
+
+  return payload.data;
+}
+
+export async function updateAdminService(input: {
+  accessToken: string;
+  description: string;
+  group: string;
+  name: string;
+  protocol: string;
+  publicPath: string;
+  serviceID: string;
+  upstreamUrl: string;
+}) {
+  const payload = await requestJSON<AdminService>({
+    accessToken: input.accessToken,
+    baseURL: getGatewayBaseURL(),
+    body: {
+      description: input.description,
+      group: input.group,
+      name: input.name,
+      protocol: input.protocol,
+      publicPath: input.publicPath,
+      upstreamUrl: input.upstreamUrl,
+    },
+    method: "PATCH",
+    path: `/api/v1/admin/services/${input.serviceID}`,
+  });
+
+  return payload.data;
+}
+
+export async function setAdminServiceStatus(input: {
+  accessToken: string;
+  serviceID: string;
+  status: string;
+}) {
+  const payload = await requestJSON<AdminService>({
+    accessToken: input.accessToken,
+    baseURL: getGatewayBaseURL(),
+    body: {
+      status: input.status,
+    },
+    method: "POST",
+    path: `/api/v1/admin/services/${input.serviceID}/status`,
+  });
+
+  return payload.data;
+}
+
 export async function listAdminDevices(input: {
   accessToken: string;
   keyword?: string;
@@ -184,6 +286,34 @@ export async function listAdminDevices(input: {
   });
 
   return unwrapPaginated(payload);
+}
+
+export async function getAdminDevice(input: { accessToken: string; deviceID: string }) {
+  const payload = await requestJSON<AdminDevice>({
+    accessToken: input.accessToken,
+    baseURL: getGatewayBaseURL(),
+    path: `/api/v1/admin/devices/${input.deviceID}`,
+  });
+
+  return payload.data;
+}
+
+export async function setAdminDeviceStatus(input: {
+  accessToken: string;
+  deviceID: string;
+  status: string;
+}) {
+  const payload = await requestJSON<AdminDevice>({
+    accessToken: input.accessToken,
+    baseURL: getGatewayBaseURL(),
+    body: {
+      status: input.status,
+    },
+    method: "POST",
+    path: `/api/v1/admin/devices/${input.deviceID}/status`,
+  });
+
+  return payload.data;
 }
 
 export async function listAdminAuditEvents(input: {

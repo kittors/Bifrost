@@ -1,8 +1,15 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { toast } from "sonner";
 
-import { listAdminServices, requireAccessToken } from "../entities/admin/api";
+import {
+  listAdminServices,
+  requireAccessToken,
+  setAdminServiceStatus,
+} from "../entities/admin/api";
+import type { AdminService } from "../entities/admin/types";
 import { CreateServiceDialog } from "../features/admin-services/create-service-dialog";
+import { EditServiceDialog } from "../features/admin-services/edit-service-dialog";
 import { ServicesFilterBar } from "../features/admin-services/services-filter-bar";
 import { ServicesTable } from "../features/admin-services/services-table";
 import { getCurrentAdminSession } from "../features/auth/store";
@@ -15,6 +22,8 @@ export function ServicesPage() {
   const [keyword, setKeyword] = useState("");
   const [status, setStatus] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
+  const [editingService, setEditingService] = useState<AdminService | null>(null);
+  const [pendingServiceID, setPendingServiceID] = useState<string | null>(null);
 
   const servicesQuery = useQuery({
     queryFn: () => listAdminServices({ accessToken, keyword, status }),
@@ -23,6 +32,25 @@ export function ServicesPage() {
 
   const rows = servicesQuery.data?.items ?? [];
   const totalServices = servicesQuery.data?.total ?? 0;
+
+  const setServiceStatusMutation = useMutation({
+    mutationFn: (service: AdminService) =>
+      setAdminServiceStatus({
+        accessToken,
+        serviceID: service.id,
+        status: service.status === "enabled" ? "disabled" : "enabled",
+      }),
+    onMutate: (service) => {
+      setPendingServiceID(service.id);
+    },
+    onSettled: () => {
+      setPendingServiceID(null);
+    },
+    onSuccess: async () => {
+      toast.success("服务状态已更新");
+      await queryClient.invalidateQueries({ queryKey: ["admin-services"] });
+    },
+  });
 
   return (
     <div className="space-y-4">
@@ -61,8 +89,30 @@ export function ServicesPage() {
           正在加载服务列表...
         </div>
       ) : (
-        <ServicesTable rows={rows} totalServices={totalServices} />
+        <ServicesTable
+          onEdit={setEditingService}
+          onToggleStatus={async (service) => {
+            await setServiceStatusMutation.mutateAsync(service);
+          }}
+          pendingServiceID={pendingServiceID}
+          rows={rows}
+          totalServices={totalServices}
+        />
       )}
+
+      <EditServiceDialog
+        accessToken={accessToken}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditingService(null);
+          }
+        }}
+        onSaved={async () => {
+          await queryClient.invalidateQueries({ queryKey: ["admin-services"] });
+        }}
+        open={Boolean(editingService)}
+        service={editingService}
+      />
     </div>
   );
 }
