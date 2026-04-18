@@ -91,6 +91,10 @@ type stubAuthService struct {
 	createdAdminRole     auth.AdminRole
 	createAdminRoleError error
 
+	updateAdminRoleInput auth.UpdateAdminRoleInput
+	updatedAdminRole     auth.AdminRole
+	updateAdminRoleError error
+
 	listAdminServicesInput auth.ListAdminServicesInput
 	adminServices          auth.AdminServiceListResult
 	adminServicesError     error
@@ -133,6 +137,10 @@ type stubAuthService struct {
 	replaceUserServiceOverridesInput auth.ReplaceUserServiceOverridesInput
 	userServiceOverrides             []auth.UserServiceOverride
 	userServiceOverridesError        error
+
+	listUserServiceOverridesInput auth.ListUserServiceOverridesInput
+	listedUserServiceOverrides    []auth.UserServiceOverride
+	listUserServiceOverridesError error
 }
 
 func (s *stubAuthService) AdminLogin(_ context.Context, input auth.AdminLoginInput) (auth.LoginResult, error) {
@@ -240,6 +248,11 @@ func (s *stubAuthService) CreateAdminRole(_ context.Context, input auth.CreateAd
 	return s.createdAdminRole, s.createAdminRoleError
 }
 
+func (s *stubAuthService) UpdateAdminRole(_ context.Context, input auth.UpdateAdminRoleInput) (auth.AdminRole, error) {
+	s.updateAdminRoleInput = input
+	return s.updatedAdminRole, s.updateAdminRoleError
+}
+
 func (s *stubAuthService) ListAdminServices(_ context.Context, input auth.ListAdminServicesInput) (auth.AdminServiceListResult, error) {
 	s.listAdminServicesInput = input
 	return s.adminServices, s.adminServicesError
@@ -293,6 +306,11 @@ func (s *stubAuthService) ReplaceRoleServices(_ context.Context, input auth.Repl
 func (s *stubAuthService) ReplaceUserServiceOverrides(_ context.Context, input auth.ReplaceUserServiceOverridesInput) ([]auth.UserServiceOverride, error) {
 	s.replaceUserServiceOverridesInput = input
 	return s.userServiceOverrides, s.userServiceOverridesError
+}
+
+func (s *stubAuthService) ListUserServiceOverrides(_ context.Context, input auth.ListUserServiceOverridesInput) ([]auth.UserServiceOverride, error) {
+	s.listUserServiceOverridesInput = input
+	return s.listedUserServiceOverrides, s.listUserServiceOverridesError
 }
 
 type apiEnvelope struct {

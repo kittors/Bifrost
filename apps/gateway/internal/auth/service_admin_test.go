@@ -267,6 +267,19 @@ func TestServiceAdminRoleServiceDeviceAuditAndOverrideManagement(t *testing.T) {
 		t.Fatalf("expected role_created_01, got %q", createdRole.ID)
 	}
 
+	updatedRole, err := service.UpdateAdminRole(ctx, auth.UpdateAdminRoleInput{
+		AccessToken: loginResult.AccessToken,
+		RoleID:      "role_created_01",
+		DisplayName: "运维团队",
+		Description: "运维私有服务访问角色",
+	})
+	if err != nil {
+		t.Fatalf("update admin role: %v", err)
+	}
+	if updatedRole.DisplayName != "运维团队" || updatedRole.Description != "运维私有服务访问角色" {
+		t.Fatalf("expected updated role payload, got %#v", updatedRole)
+	}
+
 	services, err := service.ListAdminServices(ctx, auth.ListAdminServicesInput{
 		AccessToken: loginResult.AccessToken,
 		Page:        1,
@@ -414,4 +427,15 @@ func TestServiceAdminRoleServiceDeviceAuditAndOverrideManagement(t *testing.T) {
 		"service_docs":   "allow",
 		"service_gitlab": "deny",
 	})
+
+	listedOverrides, err := service.ListUserServiceOverrides(ctx, auth.ListUserServiceOverridesInput{
+		AccessToken: loginResult.AccessToken,
+		UserID:      "user_alice",
+	})
+	if err != nil {
+		t.Fatalf("list user service overrides: %v", err)
+	}
+	if len(listedOverrides) != 2 {
+		t.Fatalf("expected 2 listed overrides, got %d", len(listedOverrides))
+	}
 }

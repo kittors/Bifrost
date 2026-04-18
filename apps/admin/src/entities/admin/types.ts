@@ -49,6 +49,11 @@ export type AdminAuditEvent = {
   type: string;
 };
 
+export type UserServiceOverride = {
+  effect: "allow" | "deny";
+  serviceId: string;
+};
+
 export type PaginatedResult<T> = {
   items: T[];
   total: number;

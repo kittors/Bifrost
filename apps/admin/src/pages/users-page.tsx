@@ -1,9 +1,16 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { listAdminRoles, listAdminUsers, requireAccessToken } from "../entities/admin/api";
+import {
+  listAdminRoles,
+  listAdminServices,
+  listAdminUsers,
+  requireAccessToken,
+} from "../entities/admin/api";
+import type { AdminUser } from "../entities/admin/types";
 import { CreateUserDialog } from "../features/admin-users/create-user-dialog";
 import { UserDetailDrawer } from "../features/admin-users/user-detail-drawer";
+import { UserServiceOverridesDrawer } from "../features/admin-users/user-service-overrides-drawer";
 import { UsersFilterBar } from "../features/admin-users/users-filter-bar";
 import { UsersTable } from "../features/admin-users/users-table";
 import { getCurrentAdminSession } from "../features/auth/store";
@@ -17,6 +24,7 @@ export function UsersPage() {
   const [status, setStatus] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedUserID, setSelectedUserID] = useState<string | null>(null);
+  const [overrideUser, setOverrideUser] = useState<AdminUser | null>(null);
 
   const usersQuery = useQuery({
     queryFn: () =>
@@ -32,8 +40,13 @@ export function UsersPage() {
     queryFn: () => listAdminRoles({ accessToken }),
     queryKey: ["admin-roles", accessToken],
   });
+  const servicesQuery = useQuery({
+    queryFn: () => listAdminServices({ accessToken, pageSize: 200 }),
+    queryKey: ["admin-services", accessToken, "user-overrides"],
+  });
 
   const roleOptions = rolesQuery.data?.items ?? [];
+  const serviceOptions = servicesQuery.data?.items ?? [];
   const userRows = usersQuery.data?.items ?? [];
   const totalUsers = usersQuery.data?.total ?? 0;
 
@@ -81,6 +94,7 @@ export function UsersPage() {
         <UsersTable
           keyword={keyword}
           onOpenDetails={setSelectedUserID}
+          onOpenOverrides={setOverrideUser}
           rows={userRows}
           status={status}
           totalUsers={totalUsers}
@@ -99,6 +113,21 @@ export function UsersPage() {
         }}
         open={Boolean(selectedUserID)}
         userID={selectedUserID}
+      />
+
+      <UserServiceOverridesDrawer
+        accessToken={accessToken}
+        onOpenChange={(open) => {
+          if (!open) {
+            setOverrideUser(null);
+          }
+        }}
+        onSaved={async () => {
+          await queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+        }}
+        open={Boolean(overrideUser)}
+        services={serviceOptions}
+        user={overrideUser}
       />
     </div>
   );

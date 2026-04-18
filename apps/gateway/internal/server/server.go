@@ -70,6 +70,7 @@ type AuthService interface {
 	SetAdminUserStatus(ctx context.Context, input auth.SetAdminUserStatusInput) (auth.AdminUser, error)
 	ListAdminRoles(ctx context.Context, input auth.ListAdminRolesInput) (auth.AdminRoleListResult, error)
 	CreateAdminRole(ctx context.Context, input auth.CreateAdminRoleInput) (auth.AdminRole, error)
+	UpdateAdminRole(ctx context.Context, input auth.UpdateAdminRoleInput) (auth.AdminRole, error)
 	GetAdminService(ctx context.Context, input auth.GetAdminServiceInput) (auth.AdminService, error)
 	UpdateAdminService(ctx context.Context, input auth.UpdateAdminServiceInput) (auth.AdminService, error)
 	SetAdminServiceStatus(ctx context.Context, input auth.SetAdminServiceStatusInput) (auth.AdminService, error)
@@ -81,6 +82,7 @@ type AuthService interface {
 	ListAdminAuditEvents(ctx context.Context, input auth.ListAdminAuditEventsInput) (auth.AdminAuditEventListResult, error)
 	ReplaceRoleServices(ctx context.Context, input auth.ReplaceRoleServicesInput) error
 	ReplaceUserServiceOverrides(ctx context.Context, input auth.ReplaceUserServiceOverridesInput) ([]auth.UserServiceOverride, error)
+	ListUserServiceOverrides(ctx context.Context, input auth.ListUserServiceOverridesInput) ([]auth.UserServiceOverride, error)
 	ResolveProxyRequest(ctx context.Context, input auth.ResolveProxyRequestInput) (auth.ResolveProxyRequestResult, error)
 	RecordProxyAccessEvent(ctx context.Context, input auth.RecordProxyAccessEventInput) error
 }

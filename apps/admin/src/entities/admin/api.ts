@@ -8,6 +8,7 @@ import type {
   AdminService,
   AdminUser,
   PaginatedResult,
+  UserServiceOverride,
 } from "./types";
 
 function unwrapPaginated<T>(payload: Awaited<ReturnType<typeof requestJSON<{ items: T[] }>>>) {
@@ -148,6 +149,26 @@ export async function createAdminRole(input: {
     },
     method: "POST",
     path: "/api/v1/admin/roles",
+  });
+
+  return payload.data;
+}
+
+export async function updateAdminRole(input: {
+  accessToken: string;
+  description: string;
+  displayName: string;
+  roleID: string;
+}) {
+  const payload = await requestJSON<AdminRole>({
+    accessToken: input.accessToken,
+    baseURL: getGatewayBaseURL(),
+    body: {
+      description: input.description,
+      displayName: input.displayName,
+    },
+    method: "PATCH",
+    path: `/api/v1/admin/roles/${input.roleID}`,
   });
 
   return payload.data;
@@ -354,6 +375,36 @@ export async function replaceRoleServices(input: {
   });
 
   return payload.data;
+}
+
+export async function listUserServiceOverrides(input: { accessToken: string; userID: string }) {
+  const payload = await requestJSON<{ items: UserServiceOverride[] }>({
+    accessToken: input.accessToken,
+    baseURL: getGatewayBaseURL(),
+    path: `/api/v1/admin/users/${input.userID}/service-overrides`,
+  });
+
+  return payload.data.items;
+}
+
+export async function replaceUserServiceOverrides(input: {
+  accessToken: string;
+  allowServiceIDs: string[];
+  denyServiceIDs: string[];
+  userID: string;
+}) {
+  const payload = await requestJSON<{ items: UserServiceOverride[] }>({
+    accessToken: input.accessToken,
+    baseURL: getGatewayBaseURL(),
+    body: {
+      allowServiceIds: input.allowServiceIDs,
+      denyServiceIds: input.denyServiceIDs,
+    },
+    method: "PUT",
+    path: `/api/v1/admin/users/${input.userID}/service-overrides`,
+  });
+
+  return payload.data.items;
 }
 
 export function requireAccessToken(session: StoredAdminSession | null) {

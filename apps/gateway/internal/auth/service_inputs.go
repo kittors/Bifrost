@@ -142,6 +142,13 @@ type CreateAdminRoleInput struct {
 	Description string
 }
 
+type UpdateAdminRoleInput struct {
+	AccessToken string
+	RoleID      string
+	DisplayName string
+	Description string
+}
+
 type GetAdminServiceInput struct {
 	AccessToken string
 	ServiceID   string
@@ -230,4 +237,9 @@ type ReplaceUserServiceOverridesInput struct {
 	UserID          string
 	AllowServiceIDs []string
 	DenyServiceIDs  []string
+}
+
+type ListUserServiceOverridesInput struct {
+	AccessToken string
+	UserID      string
 }

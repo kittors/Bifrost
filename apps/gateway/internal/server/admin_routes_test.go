@@ -186,6 +186,12 @@ func TestAdminConfigRoutes(t *testing.T) {
 			Pagination: contracts.Pagination{Page: 1, PageSize: 20, Total: 1, TotalPages: 1},
 		},
 		createdAdminRole: auth.AdminRole{ID: "role_created_01", Name: "qa", DisplayName: "QA"},
+		updatedAdminRole: auth.AdminRole{
+			ID:          "role_ops",
+			Name:        "ops",
+			DisplayName: "Operations Team",
+			Description: "Ops private services",
+		},
 		adminServices: auth.AdminServiceListResult{
 			Items:      []auth.AdminService{{ID: "service_docs", Key: "docs", Name: "Docs", Status: "enabled"}},
 			Pagination: contracts.Pagination{Page: 1, PageSize: 20, Total: 1, TotalPages: 1},
@@ -204,7 +210,8 @@ func TestAdminConfigRoutes(t *testing.T) {
 			Items:      []auth.AdminAuditEvent{{ID: "audit_01", Type: "auth.login.succeeded", Result: "success"}},
 			Pagination: contracts.Pagination{Page: 1, PageSize: 20, Total: 1, TotalPages: 1},
 		},
-		userServiceOverrides: []auth.UserServiceOverride{{ServiceID: "service_docs", Effect: "allow"}},
+		userServiceOverrides:       []auth.UserServiceOverride{{ServiceID: "service_docs", Effect: "allow"}},
+		listedUserServiceOverrides: []auth.UserServiceOverride{{ServiceID: "service_docs", Effect: "allow"}, {ServiceID: "service_gitlab", Effect: "deny"}},
 	}
 
 	app := server.New(server.Options{
@@ -230,6 +237,7 @@ func TestAdminConfigRoutes(t *testing.T) {
 	}{
 		{http.MethodGet, "/api/v1/admin/roles?keyword=ops", "", http.StatusOK},
 		{http.MethodPost, "/api/v1/admin/roles", `{"name":"qa","displayName":"QA","description":"Quality"}`, http.StatusCreated},
+		{http.MethodPatch, "/api/v1/admin/roles/role_ops", `{"displayName":"Operations Team","description":"Ops private services"}`, http.StatusOK},
 		{http.MethodGet, "/api/v1/admin/services?group=shared", "", http.StatusOK},
 		{http.MethodPost, "/api/v1/admin/services", `{"key":"gitlab","name":"GitLab","description":"Code","group":"engineering","protocol":"http","upstreamUrl":"http://gitlab:8080","publicPath":"/s/gitlab","enabled":true}`, http.StatusCreated},
 		{http.MethodGet, "/api/v1/admin/services/service_docs", "", http.StatusOK},
@@ -240,6 +248,7 @@ func TestAdminConfigRoutes(t *testing.T) {
 		{http.MethodPost, "/api/v1/admin/devices/device_01/status", `{"status":"disabled"}`, http.StatusOK},
 		{http.MethodGet, "/api/v1/admin/audit-events?type=auth.login.succeeded", "", http.StatusOK},
 		{http.MethodPut, "/api/v1/admin/roles/role_ops/services", `{"serviceIds":["service_docs"]}`, http.StatusOK},
+		{http.MethodGet, "/api/v1/admin/users/user_alice/service-overrides", "", http.StatusOK},
 		{http.MethodPut, "/api/v1/admin/users/user_alice/service-overrides", `{"allowServiceIds":["service_docs"],"denyServiceIds":["service_gitlab"]}`, http.StatusOK},
 	}
 
@@ -268,8 +277,14 @@ func TestAdminConfigRoutes(t *testing.T) {
 	if stub.replaceRoleServicesInput.RoleID != "role_ops" {
 		t.Fatalf("expected role service role id role_ops, got %q", stub.replaceRoleServicesInput.RoleID)
 	}
+	if stub.updateAdminRoleInput.DisplayName != "Operations Team" {
+		t.Fatalf("expected updated role display name, got %q", stub.updateAdminRoleInput.DisplayName)
+	}
 	if stub.replaceUserServiceOverridesInput.UserID != "user_alice" {
 		t.Fatalf("expected override user id user_alice, got %q", stub.replaceUserServiceOverridesInput.UserID)
+	}
+	if stub.listUserServiceOverridesInput.UserID != "user_alice" {
+		t.Fatalf("expected override list user id user_alice, got %q", stub.listUserServiceOverridesInput.UserID)
 	}
 	if stub.updateAdminServiceInput.Name != "Docs Portal" {
 		t.Fatalf("expected service update name Docs Portal, got %q", stub.updateAdminServiceInput.Name)

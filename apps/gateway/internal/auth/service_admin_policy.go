@@ -55,6 +55,39 @@ func (s Service) ReplaceUserServiceOverrides(ctx context.Context, input ReplaceU
 	return overrides, nil
 }
 
+func (s Service) ListUserServiceOverrides(ctx context.Context, input ListUserServiceOverridesInput) ([]UserServiceOverride, error) {
+	if _, err := s.ensureAdminPrincipal(ctx, input.AccessToken); err != nil {
+		return nil, err
+	}
+
+	rows, err := s.db().QueryContext(
+		ctx,
+		`SELECT service_id, effect
+		FROM user_service_overrides
+		WHERE user_id = $1
+		ORDER BY effect ASC, service_id ASC`,
+		input.UserID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("query user service overrides: %w", err)
+	}
+	defer rows.Close()
+
+	overrides := []UserServiceOverride{}
+	for rows.Next() {
+		var override UserServiceOverride
+		if err := rows.Scan(&override.ServiceID, &override.Effect); err != nil {
+			return nil, fmt.Errorf("scan user service override: %w", err)
+		}
+		overrides = append(overrides, override)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate user service overrides: %w", err)
+	}
+
+	return overrides, nil
+}
+
 func insertUserServiceOverrideTx(ctx context.Context, tx *sql.Tx, userID string, serviceID string, effect string, createdBy string) error {
 	if _, err := tx.ExecContext(ctx, `INSERT INTO user_service_overrides (user_id, service_id, effect, reason, created_by) VALUES ($1, $2, $3, '', $4)`, userID, serviceID, effect, createdBy); err != nil {
 		return fmt.Errorf("insert user service override: %w", err)

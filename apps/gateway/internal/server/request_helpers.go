@@ -78,6 +78,9 @@ func parseAdminRolePath(path string) (string, string, bool) {
 	}
 
 	parts := strings.Split(strings.Trim(remaining, "/"), "/")
+	if len(parts) == 1 {
+		return parts[0], "", parts[0] != ""
+	}
 	if len(parts) == 2 && parts[1] == "services" {
 		return parts[0], parts[1], parts[0] != ""
 	}

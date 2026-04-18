@@ -4,6 +4,7 @@ import { useState } from "react";
 import { listAdminRoles, listAdminServices, requireAccessToken } from "../entities/admin/api";
 import type { AdminRole } from "../entities/admin/types";
 import { CreateRoleDialog } from "../features/admin-roles/create-role-dialog";
+import { EditRoleDialog } from "../features/admin-roles/edit-role-dialog";
 import { RoleServicesDrawer } from "../features/admin-roles/role-services-drawer";
 import { RolesFilterBar } from "../features/admin-roles/roles-filter-bar";
 import { RolesTable } from "../features/admin-roles/roles-table";
@@ -16,6 +17,7 @@ export function RolesPage() {
   const queryClient = useQueryClient();
   const [keyword, setKeyword] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
+  const [editingRole, setEditingRole] = useState<AdminRole | null>(null);
   const [permissionRole, setPermissionRole] = useState<AdminRole | null>(null);
 
   const rolesQuery = useQuery({
@@ -71,11 +73,26 @@ export function RolesPage() {
       ) : (
         <RolesTable
           keyword={keyword}
+          onEdit={setEditingRole}
           onOpenPermissions={setPermissionRole}
           rows={rows}
           totalRoles={totalRoles}
         />
       )}
+
+      <EditRoleDialog
+        accessToken={accessToken}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditingRole(null);
+          }
+        }}
+        onSaved={async () => {
+          await queryClient.invalidateQueries({ queryKey: ["admin-roles"] });
+        }}
+        open={Boolean(editingRole)}
+        role={editingRole}
+      />
 
       <RoleServicesDrawer
         accessToken={accessToken}

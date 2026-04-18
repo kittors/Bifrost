@@ -4,12 +4,19 @@ import type { AdminRole } from "../../entities/admin/types";
 
 type RolesTableProps = {
   keyword: string;
+  onEdit: (role: AdminRole) => void;
   onOpenPermissions: (role: AdminRole) => void;
   rows: AdminRole[];
   totalRoles: number;
 };
 
-export function RolesTable({ keyword, onOpenPermissions, rows, totalRoles }: RolesTableProps) {
+export function RolesTable({
+  keyword,
+  onEdit,
+  onOpenPermissions,
+  rows,
+  totalRoles,
+}: RolesTableProps) {
   const caption = `当前共有 ${totalRoles} 个角色`;
 
   return (
@@ -44,15 +51,26 @@ export function RolesTable({ keyword, onOpenPermissions, rows, totalRoles }: Rol
                 </Table.Cell>
                 <Table.Cell>{role.description}</Table.Cell>
                 <Table.Cell className="text-right">
-                  <Button
-                    onClick={() => {
-                      onOpenPermissions(role);
-                    }}
-                    size="sm"
-                    variant="secondary"
-                  >
-                    授权服务
-                  </Button>
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      onClick={() => {
+                        onEdit(role);
+                      }}
+                      size="sm"
+                      variant="ghost"
+                    >
+                      编辑
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        onOpenPermissions(role);
+                      }}
+                      size="sm"
+                      variant="secondary"
+                    >
+                      授权服务
+                    </Button>
+                  </div>
                 </Table.Cell>
               </Table.Row>
             ))}

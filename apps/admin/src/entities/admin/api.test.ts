@@ -3,9 +3,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createAdminRole,
   createAdminService,
+  listUserServiceOverrides,
   replaceRoleServices,
+  replaceUserServiceOverrides,
   resetAdminUserPassword,
   setAdminDeviceStatus,
+  updateAdminRole,
   updateAdminService,
 } from "./api";
 
@@ -303,6 +306,117 @@ describe("admin entity api helpers", () => {
           "Content-Type": "application/json",
         }),
         method: "POST",
+      }),
+    );
+  });
+
+  it("updates an admin role through the gateway API", async () => {
+    const fetchMock = vi.fn(async () =>
+      jsonResponse({
+        data: {
+          description: "运维私有服务访问角色",
+          displayName: "运维团队",
+          id: "role_ops",
+          name: "ops",
+        },
+        error: null,
+        meta: {
+          requestId: "req_role_update_01",
+          timestamp: "2026-04-18T00:31:00Z",
+        },
+        success: true,
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const role = await updateAdminRole({
+      accessToken: "access_01",
+      description: "运维私有服务访问角色",
+      displayName: "运维团队",
+      roleID: "role_ops",
+    });
+
+    expect(role.displayName).toBe("运维团队");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:8080/api/v1/admin/roles/role_ops",
+      expect.objectContaining({
+        body: JSON.stringify({
+          description: "运维私有服务访问角色",
+          displayName: "运维团队",
+        }),
+        method: "PATCH",
+      }),
+    );
+  });
+
+  it("lists user service overrides through the gateway API", async () => {
+    const fetchMock = vi.fn(async () =>
+      jsonResponse({
+        data: {
+          items: [
+            { effect: "allow", serviceId: "service_docs" },
+            { effect: "deny", serviceId: "service_gitlab" },
+          ],
+        },
+        error: null,
+        meta: {
+          requestId: "req_user_overrides_list_01",
+          timestamp: "2026-04-18T00:32:00Z",
+        },
+        success: true,
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const overrides = await listUserServiceOverrides({
+      accessToken: "access_01",
+      userID: "user_alice",
+    });
+
+    expect(overrides).toHaveLength(2);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:8080/api/v1/admin/users/user_alice/service-overrides",
+      expect.objectContaining({
+        method: "GET",
+      }),
+    );
+  });
+
+  it("replaces user service overrides through the gateway API", async () => {
+    const fetchMock = vi.fn(async () =>
+      jsonResponse({
+        data: {
+          items: [
+            { effect: "allow", serviceId: "service_docs" },
+            { effect: "deny", serviceId: "service_gitlab" },
+          ],
+        },
+        error: null,
+        meta: {
+          requestId: "req_user_overrides_replace_01",
+          timestamp: "2026-04-18T00:33:00Z",
+        },
+        success: true,
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const overrides = await replaceUserServiceOverrides({
+      accessToken: "access_01",
+      allowServiceIDs: ["service_docs"],
+      denyServiceIDs: ["service_gitlab"],
+      userID: "user_alice",
+    });
+
+    expect(overrides[0]?.serviceId).toBe("service_docs");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:8080/api/v1/admin/users/user_alice/service-overrides",
+      expect.objectContaining({
+        body: JSON.stringify({
+          allowServiceIds: ["service_docs"],
+          denyServiceIds: ["service_gitlab"],
+        }),
+        method: "PUT",
       }),
     );
   });

@@ -7,12 +7,20 @@ import { StatusBadge } from "../../shared/ui/status-badge";
 type UsersTableProps = {
   keyword: string;
   onOpenDetails: (userID: string) => void;
+  onOpenOverrides: (user: AdminUser) => void;
   rows: AdminUser[];
   status: string;
   totalUsers: number;
 };
 
-export function UsersTable({ keyword, onOpenDetails, rows, status, totalUsers }: UsersTableProps) {
+export function UsersTable({
+  keyword,
+  onOpenDetails,
+  onOpenOverrides,
+  rows,
+  status,
+  totalUsers,
+}: UsersTableProps) {
   const resultCaption =
     keyword || status ? `当前筛选命中 ${totalUsers} 个用户` : `当前共有 ${totalUsers} 个用户`;
 
@@ -54,15 +62,26 @@ export function UsersTable({ keyword, onOpenDetails, rows, status, totalUsers }:
                   <StatusBadge status={formatStatusLabel(user.status).toLowerCase()} />
                 </Table.Cell>
                 <Table.Cell className="text-right">
-                  <Button
-                    onClick={() => {
-                      onOpenDetails(user.id);
-                    }}
-                    size="sm"
-                    variant="ghost"
-                  >
-                    详情
-                  </Button>
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      onClick={() => {
+                        onOpenOverrides(user);
+                      }}
+                      size="sm"
+                      variant="secondary"
+                    >
+                      覆盖
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        onOpenDetails(user.id);
+                      }}
+                      size="sm"
+                      variant="ghost"
+                    >
+                      详情
+                    </Button>
+                  </div>
                 </Table.Cell>
               </Table.Row>
             ))}
