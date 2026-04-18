@@ -57,3 +57,12 @@ test("unreachable upstream returns a gateway error instead of policy denial", as
     });
   }
 });
+
+test("unknown service key is rejected before any upstream proxying", async ({ request }) => {
+  const client = await bootstrapClientDevice(request, "alice", seedPassword);
+  const denied = await proxyServiceRequest(request, client.session.accessToken, "not-configured");
+
+  expect(denied.response.status()).toBe(404);
+  expect(denied.payload.success).toBeFalsy();
+  expect(denied.payload.error?.code).toBe("SERVICE_NOT_FOUND");
+});

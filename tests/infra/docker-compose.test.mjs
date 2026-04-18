@@ -68,7 +68,7 @@ test("root scripts expose docker-driven e2e orchestration commands", () => {
     readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
   );
 
-  assert.equal(packageJson.scripts["test:e2e"], "playwright test");
+  assert.equal(packageJson.scripts["test:e2e"], "node ./scripts/testing/e2e-run.mjs");
   assert.equal(packageJson.scripts["test:e2e:up"], "node ./scripts/testing/e2e-up.mjs");
   assert.equal(packageJson.scripts["test:e2e:seed"], "node ./scripts/testing/e2e-seed.mjs");
   assert.equal(packageJson.scripts["test:e2e:down"], "node ./scripts/testing/e2e-down.mjs");
