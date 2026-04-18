@@ -14,6 +14,7 @@ type ClientLoginInput struct {
 	Password      string
 	DeviceID      string
 	ClientVersion string
+	RequestID     string
 }
 
 type BootstrapClientDeviceInput struct {

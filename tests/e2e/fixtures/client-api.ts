@@ -152,6 +152,30 @@ export async function replaceRoleServices(
   return payload.data;
 }
 
+export async function replaceUserServiceOverrides(
+  request: APIRequestContext,
+  accessToken: string,
+  userID: string,
+  input: {
+    allowServiceIds: string[];
+    denyServiceIds: string[];
+  },
+) {
+  const { payload, response } = await requestJSON<{
+    items: Array<{ effect: "allow" | "deny"; serviceId: string }>;
+  }>(request, {
+    accessToken,
+    body: input,
+    method: "PUT",
+    path: `/api/v1/admin/users/${userID}/service-overrides`,
+  });
+
+  expect(response.ok()).toBeTruthy();
+  expect(payload.success).toBeTruthy();
+
+  return payload.data.items;
+}
+
 export async function setAdminServiceStatus(
   request: APIRequestContext,
   accessToken: string,
@@ -166,6 +190,52 @@ export async function setAdminServiceStatus(
     body: { status },
     method: "POST",
     path: `/api/v1/admin/services/${serviceID}/status`,
+  });
+
+  expect(response.ok()).toBeTruthy();
+  expect(payload.success).toBeTruthy();
+
+  return payload.data;
+}
+
+export async function listAdminDevices(
+  request: APIRequestContext,
+  accessToken: string,
+  userID: string,
+) {
+  const { payload, response } = await requestJSON<{
+    items: Array<{
+      id: string;
+      name: string;
+      status: string;
+      userId: string;
+    }>;
+  }>(request, {
+    accessToken,
+    method: "GET",
+    path: `/api/v1/admin/devices?userId=${encodeURIComponent(userID)}`,
+  });
+
+  expect(response.ok()).toBeTruthy();
+  expect(payload.success).toBeTruthy();
+
+  return payload.data.items;
+}
+
+export async function setAdminDeviceStatus(
+  request: APIRequestContext,
+  accessToken: string,
+  deviceID: string,
+  status: "disabled" | "trusted",
+) {
+  const { payload, response } = await requestJSON<{
+    id: string;
+    status: string;
+  }>(request, {
+    accessToken,
+    body: { status },
+    method: "POST",
+    path: `/api/v1/admin/devices/${deviceID}/status`,
   });
 
   expect(response.ok()).toBeTruthy();
@@ -230,6 +300,45 @@ export async function listAdminUsers(
     };
     success: boolean;
   };
+
+  expect(response.ok()).toBeTruthy();
+  expect(payload.success).toBeTruthy();
+
+  return payload.data.items;
+}
+
+export async function listAdminAuditEvents(
+  request: APIRequestContext,
+  accessToken: string,
+  filters: Partial<{
+    actorUserId: string;
+    result: string;
+    serviceId: string;
+    targetId: string;
+    targetType: string;
+    type: string;
+  }> = {},
+) {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters)) {
+    if (value) {
+      query.set(key, value);
+    }
+  }
+
+  const { payload, response } = await requestJSON<{
+    items: Array<{
+      id: string;
+      requestId: string;
+      result: string;
+      serviceId: string;
+      type: string;
+    }>;
+  }>(request, {
+    accessToken,
+    method: "GET",
+    path: `/api/v1/admin/audit-events?${query.toString()}`,
+  });
 
   expect(response.ok()).toBeTruthy();
   expect(payload.success).toBeTruthy();

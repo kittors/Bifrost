@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"slices"
+	"strings"
 
 	"github.com/kittors/bifrost/apps/gateway/internal/contracts"
 )
@@ -15,6 +16,9 @@ import (
 func (s Service) AdminLogin(ctx context.Context, input AdminLoginInput) (LoginResult, error) {
 	user, err := s.authenticateUser(ctx, input.Username, input.Password)
 	if err != nil {
+		if auditErr := s.recordLoginFailedEvent(ctx, input.RequestID, input.Username); auditErr != nil {
+			return LoginResult{}, auditErr
+		}
 		return LoginResult{}, err
 	}
 
@@ -50,6 +54,9 @@ func (s Service) AdminLogin(ctx context.Context, input AdminLoginInput) (LoginRe
 func (s Service) ClientLogin(ctx context.Context, input ClientLoginInput) (LoginResult, error) {
 	user, err := s.authenticateUser(ctx, input.Username, input.Password)
 	if err != nil {
+		if auditErr := s.recordLoginFailedEvent(ctx, input.RequestID, input.Username); auditErr != nil {
+			return LoginResult{}, auditErr
+		}
 		return LoginResult{}, err
 	}
 
@@ -270,4 +277,17 @@ func invalidCredentialsError() error {
 		Message:     "invalid credentials",
 		UserMessage: "账号或密码不正确",
 	}
+}
+
+func (s Service) recordLoginFailedEvent(ctx context.Context, requestID string, username string) error {
+	targetID := strings.TrimSpace(username)
+
+	return s.recordAuditEvent(ctx, auditEventInput{
+		RequestID:  requestID,
+		Type:       contracts.AuditEventTypeAuthLoginFailed,
+		TargetType: "user",
+		TargetID:   targetID,
+		Result:     "failure",
+		Summary:    "login failed",
+	})
 }

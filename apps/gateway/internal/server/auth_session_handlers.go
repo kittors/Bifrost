@@ -87,6 +87,7 @@ func (a *App) handleClientLogin(writer http.ResponseWriter, request *http.Reques
 		Password:      payload.Password,
 		DeviceID:      payload.DeviceID,
 		ClientVersion: payload.ClientVersion,
+		RequestID:     requestID,
 	})
 	if err != nil {
 		a.writeMappedError(writer, requestID, timestamp, err)
