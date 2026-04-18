@@ -162,6 +162,92 @@ func TestClientLoginReturnsErrorEnvelope(t *testing.T) {
 	}
 }
 
+func TestClientDeviceBootstrapReturnsEnvelope(t *testing.T) {
+	t.Parallel()
+
+	stub := &stubAuthService{
+		clientBootstrapResult: auth.ClientBootstrapResult{
+			AccessToken:  "client-access-token",
+			RefreshToken: "client-refresh-token",
+			ExpiresIn:    900,
+			User: auth.LoginUser{
+				ID:          "user_alice",
+				Username:    "alice",
+				DisplayName: "Alice",
+				Roles:       []string{"role_developer"},
+			},
+			Device: auth.DeviceResult{
+				ID:     "device_alice_bootstrap_01",
+				Status: "trusted",
+			},
+		},
+	}
+
+	app := server.New(server.Options{
+		ReadyCheck: func(ctx context.Context) error {
+			return nil
+		},
+		ReadyTime: "2026-04-18T03:40:00Z",
+		Upstreams: map[string]string{},
+		Now: func() time.Time {
+			return time.Date(2026, time.April, 18, 3, 40, 0, 0, time.UTC)
+		},
+		RequestID: func() string {
+			return "req_client_bootstrap_01"
+		},
+		AuthService: stub,
+	})
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/api/v1/client/devices/bootstrap",
+		strings.NewReader(`{"username":"alice","password":"correct horse battery staple","deviceName":"Alice MacBook Pro","deviceOs":"macOS","clientVersion":"0.1.0","publicKey":"public-key","publicKeyFingerprint":"fp_public_key_01"}`),
+	)
+	request.Header.Set("Content-Type", "application/json")
+	app.Handler().ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", recorder.Code)
+	}
+
+	var payload apiEnvelope
+	if err := json.Unmarshal(recorder.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("unmarshal payload: %v", err)
+	}
+
+	if !payload.Success {
+		t.Fatal("expected success response")
+	}
+	if payload.Meta.RequestID != "req_client_bootstrap_01" {
+		t.Fatalf("expected request id req_client_bootstrap_01, got %q", payload.Meta.RequestID)
+	}
+
+	var data struct {
+		AccessToken  string         `json:"accessToken"`
+		RefreshToken string         `json:"refreshToken"`
+		ExpiresIn    int            `json:"expiresIn"`
+		User         loginUserShape `json:"user"`
+		Device       struct {
+			DeviceID string `json:"deviceId"`
+			Status   string `json:"status"`
+		} `json:"device"`
+	}
+	if err := json.Unmarshal(payload.Data, &data); err != nil {
+		t.Fatalf("unmarshal bootstrap data: %v", err)
+	}
+
+	if data.User.Username != "alice" {
+		t.Fatalf("expected bootstrap username alice, got %#v", data.User)
+	}
+	if data.Device.DeviceID != "device_alice_bootstrap_01" {
+		t.Fatalf("expected bootstrap device id, got %#v", data.Device)
+	}
+	if stub.clientBootstrapInput.DeviceName != "Alice MacBook Pro" {
+		t.Fatalf("expected bootstrap device name, got %#v", stub.clientBootstrapInput)
+	}
+}
+
 func TestAdminRefreshLogoutAndMeRoutes(t *testing.T) {
 	t.Parallel()
 

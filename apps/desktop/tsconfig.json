@@ -1,4 +1,4 @@
 {
   "extends": "@bifrost/config-typescript/electron.json",
-  "include": ["electron", "renderer"]
+  "include": ["electron", "electron.vite.config.ts", "renderer"]
 }

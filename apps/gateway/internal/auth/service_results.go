@@ -26,6 +26,14 @@ type DeviceResult struct {
 	Status string
 }
 
+type ClientBootstrapResult struct {
+	AccessToken  string
+	RefreshToken string
+	ExpiresIn    int
+	User         LoginUser
+	Device       DeviceResult
+}
+
 type DeviceChallengeResult struct {
 	ID        string
 	Challenge string

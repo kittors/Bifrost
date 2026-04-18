@@ -53,6 +53,54 @@ func (a *App) handleDeviceRegister(writer http.ResponseWriter, request *http.Req
 	})
 }
 
+func (a *App) handleDeviceBootstrap(writer http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodPost {
+		writer.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	requestID, timestamp := a.requestMeta(request)
+	var payload struct {
+		Username             string `json:"username"`
+		Password             string `json:"password"`
+		DeviceName           string `json:"deviceName"`
+		DeviceOS             string `json:"deviceOs"`
+		ClientVersion        string `json:"clientVersion"`
+		PublicKey            string `json:"publicKey"`
+		PublicKeyFingerprint string `json:"publicKeyFingerprint"`
+	}
+	if err := json.NewDecoder(request.Body).Decode(&payload); err != nil {
+		a.writeAPIError(writer, requestID, timestamp, badJSONError())
+		return
+	}
+
+	result, err := a.authService.BootstrapClientDevice(request.Context(), auth.BootstrapClientDeviceInput{
+		Username:             payload.Username,
+		Password:             payload.Password,
+		DeviceName:           payload.DeviceName,
+		DeviceOS:             payload.DeviceOS,
+		ClientVersion:        payload.ClientVersion,
+		PublicKey:            payload.PublicKey,
+		PublicKeyFingerprint: payload.PublicKeyFingerprint,
+		RequestID:            requestID,
+	})
+	if err != nil {
+		a.writeMappedError(writer, requestID, timestamp, err)
+		return
+	}
+
+	a.writeAPISuccess(writer, http.StatusOK, requestID, timestamp, map[string]any{
+		"accessToken":  result.AccessToken,
+		"refreshToken": result.RefreshToken,
+		"expiresIn":    result.ExpiresIn,
+		"user":         loginUserPayload(result.User),
+		"device": map[string]any{
+			"deviceId": result.Device.ID,
+			"status":   result.Device.Status,
+		},
+	})
+}
+
 func (a *App) handleDeviceChallenge(writer http.ResponseWriter, request *http.Request) {
 	if request.Method != http.MethodPost {
 		writer.WriteHeader(http.StatusMethodNotAllowed)

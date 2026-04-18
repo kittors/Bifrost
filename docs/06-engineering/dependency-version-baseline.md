@@ -23,7 +23,7 @@
 | 名称 | 版本 |
 |---|---:|
 | Electron | `41.2.1` |
-| electron-vite | `5.0.0` |
+| electron-vite | `6.0.0-beta.1` |
 | electron-builder | `26.8.1` |
 | React | `19.2.5` |
 | react-dom | `19.2.5` |

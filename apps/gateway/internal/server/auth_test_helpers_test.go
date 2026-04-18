@@ -18,6 +18,10 @@ type stubAuthService struct {
 	clientLoginResult auth.LoginResult
 	clientLoginError  error
 
+	clientBootstrapInput  auth.BootstrapClientDeviceInput
+	clientBootstrapResult auth.ClientBootstrapResult
+	clientBootstrapError  error
+
 	refreshInput  auth.RefreshInput
 	refreshResult auth.LoginResult
 	refreshError  error
@@ -151,6 +155,11 @@ func (s *stubAuthService) AdminLogin(_ context.Context, input auth.AdminLoginInp
 func (s *stubAuthService) ClientLogin(_ context.Context, input auth.ClientLoginInput) (auth.LoginResult, error) {
 	s.clientLoginInput = input
 	return s.clientLoginResult, s.clientLoginError
+}
+
+func (s *stubAuthService) BootstrapClientDevice(_ context.Context, input auth.BootstrapClientDeviceInput) (auth.ClientBootstrapResult, error) {
+	s.clientBootstrapInput = input
+	return s.clientBootstrapResult, s.clientBootstrapError
 }
 
 func (s *stubAuthService) RefreshSession(_ context.Context, input auth.RefreshInput) (auth.LoginResult, error) {

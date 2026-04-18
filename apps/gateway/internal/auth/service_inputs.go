@@ -16,6 +16,17 @@ type ClientLoginInput struct {
 	ClientVersion string
 }
 
+type BootstrapClientDeviceInput struct {
+	Username             string
+	Password             string
+	DeviceName           string
+	DeviceOS             string
+	ClientVersion        string
+	PublicKey            string
+	PublicKeyFingerprint string
+	RequestID            string
+}
+
 type RefreshInput struct {
 	RefreshToken string
 	DeviceID     string

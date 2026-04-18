@@ -4,19 +4,30 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc --noEmit",
+    "build": "electron-vite build && tsc --noEmit",
     "check": "tsc --noEmit",
-    "dev": "echo \"desktop dev server pending\"",
-    "test": "echo \"desktop tests pending\""
+    "dev": "electron-vite dev",
+    "test": "vitest run"
   },
   "dependencies": {
     "@bifrost/contracts": "workspace:*",
     "@bifrost/design-tokens": "workspace:*",
-    "@bifrost/ui": "workspace:*"
+    "@bifrost/ui": "workspace:*",
+    "@tanstack/react-query": "5.99.0",
+    "electron": "41.2.1",
+    "lucide-react": "1.8.0",
+    "react": "19.2.5",
+    "react-dom": "19.2.5",
+    "zustand": "5.0.12"
   },
   "devDependencies": {
     "@bifrost/config-typescript": "workspace:*",
+    "@tailwindcss/vite": "4.2.2",
     "@types/node": "25.6.0",
+    "@types/react": "19.2.6",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.1",
+    "electron-vite": "6.0.0-beta.1",
     "typescript": "6.0.3"
   }
 }

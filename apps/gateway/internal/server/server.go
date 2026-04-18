@@ -53,6 +53,7 @@ type App struct {
 type AuthService interface {
 	AdminLogin(ctx context.Context, input auth.AdminLoginInput) (auth.LoginResult, error)
 	ClientLogin(ctx context.Context, input auth.ClientLoginInput) (auth.LoginResult, error)
+	BootstrapClientDevice(ctx context.Context, input auth.BootstrapClientDeviceInput) (auth.ClientBootstrapResult, error)
 	RefreshSession(ctx context.Context, input auth.RefreshInput) (auth.LoginResult, error)
 	Logout(ctx context.Context, input auth.LogoutInput) error
 	CurrentUser(ctx context.Context, input auth.CurrentUserInput) (auth.LoginUser, error)
@@ -131,6 +132,7 @@ func New(options Options) *App {
 	mux.HandleFunc("/api/v1/client/auth/logout", app.handleLogout)
 	mux.HandleFunc("/api/v1/client/me", app.handleCurrentUser)
 	mux.HandleFunc("/api/v1/client/devices/register", app.handleDeviceRegister)
+	mux.HandleFunc("/api/v1/client/devices/bootstrap", app.handleDeviceBootstrap)
 	mux.HandleFunc("/api/v1/client/devices/challenge", app.handleDeviceChallenge)
 	mux.HandleFunc("/api/v1/client/devices/challenge/verify", app.handleDeviceChallengeVerify)
 	mux.HandleFunc("/api/v1/client/services", app.handleClientServices)
