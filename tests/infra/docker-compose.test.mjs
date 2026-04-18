@@ -113,7 +113,10 @@ test("desktop package scripts cover macOS Windows and Linux installers", () => {
   assert.equal(typeof desktopPackageJson.scripts["dist:win"], "string");
   assert.equal(typeof desktopPackageJson.scripts["dist:linux"], "string");
   assert.equal(typeof desktopPackageJson.scripts["dist:dir"], "string");
-  assert.match(desktopBuilderConfig, /maintainer:\s*"Kittors <14817208\+kittors@users\.noreply\.github\.com>"/);
+  assert.match(
+    desktopBuilderConfig,
+    /maintainer:\s*"Kittors <14817208\+kittors@users\.noreply\.github\.com>"/,
+  );
 });
 
 test("github actions workflows exist for CI gate and desktop artifacts", () => {
@@ -141,9 +144,13 @@ test("github actions workflows exist for CI gate and desktop artifacts", () => {
   assert.match(ciWorkflow, /go test \.\/\.\.\./);
   assert.match(ciWorkflow, /FORCE_JAVASCRIPT_ACTIONS_TO_NODE24:\s*"true"/);
   assert.match(ciWorkflow, /cache-dependency-path:\s*apps\/gateway\/go\.sum/);
+  assert.match(ciWorkflow, /corepack prepare pnpm@10\.33\.0 --activate/);
+  assert.match(ciWorkflow, /actions\/upload-artifact@v7/);
   assert.match(ciWorkflow, /test-results\/playwright/);
   assert.match(ciWorkflow, /retention-days:\s*7/);
   assert.match(desktopWorkflow, /FORCE_JAVASCRIPT_ACTIONS_TO_NODE24:\s*"true"/);
+  assert.match(desktopWorkflow, /corepack prepare pnpm@10\.33\.0 --activate/);
+  assert.match(desktopWorkflow, /actions\/upload-artifact@v7/);
 
   for (const osName of ["macos-latest", "windows-latest", "ubuntu-latest"]) {
     assert.match(desktopWorkflow, new RegExp(osName));
