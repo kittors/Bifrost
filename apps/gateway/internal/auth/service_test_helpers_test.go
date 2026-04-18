@@ -16,6 +16,7 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 
 	"github.com/kittors/bifrost/apps/gateway/internal/auth"
+	"github.com/kittors/bifrost/apps/gateway/internal/database"
 )
 
 // 测试 helper 统一放置，业务测试文件只保留场景本身。
@@ -327,4 +328,81 @@ func openDB(t *testing.T, dsn string) *sql.DB {
 	})
 
 	return db
+}
+
+func newSeededIntegrationService(t *testing.T, ctx context.Context) (auth.Service, *sql.DB) {
+	t.Helper()
+
+	dsn := createTestDatabase(t, ctx)
+	if err := database.MigrateUp(ctx, dsn); err != nil {
+		t.Fatalf("migrate up: %v", err)
+	}
+	if err := database.SeedPhase1(ctx, dsn); err != nil {
+		t.Fatalf("seed phase 1: %v", err)
+	}
+
+	db := openDB(t, dsn)
+	now := time.Date(2026, time.April, 18, 12, 20, 0, 0, time.UTC)
+	sessionCounter := 0
+	deviceCounter := 0
+	userCounter := 0
+
+	// 集成测试固定 ID 工厂，便于断言真实数据库写入结果。
+	service := auth.Service{
+		DB:              db,
+		PasswordHasher:  auth.DefaultPasswordHasher(),
+		TokenIssuer:     auth.TokenIssuer{Secret: []byte("0123456789abcdef0123456789abcdef"), TTL: 15 * time.Minute, Now: func() time.Time { return now }},
+		Now:             func() time.Time { return now },
+		RefreshTokenTTL: 7 * 24 * time.Hour,
+		SessionIDFactory: func() (string, error) {
+			sessionCounter++
+			return fmt.Sprintf("session_integration_%02d", sessionCounter), nil
+		},
+		DeviceIDFactory: func() (string, error) {
+			deviceCounter++
+			return fmt.Sprintf("device_integration_%02d", deviceCounter), nil
+		},
+		UserIDFactory: func() (string, error) {
+			userCounter++
+			return fmt.Sprintf("user_integration_%02d", userCounter), nil
+		},
+	}
+
+	return service, db
+}
+
+func bootstrapSeedAdmin(t *testing.T, ctx context.Context, service auth.Service) auth.LoginResult {
+	t.Helper()
+
+	login, err := service.AdminLogin(ctx, auth.AdminLoginInput{
+		Username:  "admin",
+		Password:  "ChangeMe123!",
+		RequestID: "req_integration_admin_login",
+	})
+	if err != nil {
+		t.Fatalf("admin login: %v", err)
+	}
+
+	return login
+}
+
+func bootstrapSeedClient(t *testing.T, ctx context.Context, service auth.Service, username string) auth.ClientBootstrapResult {
+	t.Helper()
+
+	publicKey, _, fingerprint := generateEd25519Material(t)
+	result, err := service.BootstrapClientDevice(ctx, auth.BootstrapClientDeviceInput{
+		Username:             username,
+		Password:             "ChangeMe123!",
+		DeviceName:           "Integration Device",
+		DeviceOS:             "test-os",
+		ClientVersion:        "0.1.0-integration",
+		PublicKey:            publicKey,
+		PublicKeyFingerprint: fingerprint,
+		RequestID:            "req_integration_client_bootstrap_" + username,
+	})
+	if err != nil {
+		t.Fatalf("bootstrap client %s: %v", username, err)
+	}
+
+	return result
 }

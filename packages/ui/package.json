@@ -9,7 +9,7 @@
   "scripts": {
     "build": "tsc --noEmit",
     "check": "tsc --noEmit",
-    "test": "vitest run src/*.test.tsx"
+    "test": "vitest run"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "1.1.15",
@@ -22,9 +22,13 @@
     "tailwind-merge": "3.5.0"
   },
   "devDependencies": {
+    "@bifrost/config-vitest": "workspace:*",
+    "@testing-library/react": "16.3.2",
+    "@testing-library/user-event": "14.6.1",
     "@bifrost/config-typescript": "workspace:*",
     "@types/react": "19.2.6",
     "@types/react-dom": "19.2.3",
+    "happy-dom": "20.9.0",
     "typescript": "6.0.3",
     "vitest": "4.1.4"
   }

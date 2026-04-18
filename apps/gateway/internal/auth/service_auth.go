@@ -98,6 +98,21 @@ func (s Service) RefreshSession(ctx context.Context, input RefreshInput) (LoginR
 		return LoginResult{}, err
 	}
 
+	if record.DeviceID.Valid {
+		if input.DeviceID == "" {
+			return LoginResult{}, &ServiceError{
+				StatusCode:  http.StatusUnauthorized,
+				Code:        contracts.ErrorCodeAuthRefreshTokenInvalid,
+				Message:     "refresh token device id is required",
+				UserMessage: "登录状态已失效，请重新登录",
+			}
+		}
+
+		if err := s.ensureTrustedDevice(ctx, user.ID, record.DeviceID.String, ""); err != nil {
+			return LoginResult{}, err
+		}
+	}
+
 	return s.rotateSession(ctx, user, record)
 }
 

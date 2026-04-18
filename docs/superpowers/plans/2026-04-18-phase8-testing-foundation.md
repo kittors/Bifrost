@@ -128,7 +128,7 @@ Expected: PASS。
 - Modify: `apps/gateway/internal/auth/service_test_helpers_test.go`
 - Modify: `apps/gateway/internal/database/migrate_test.go`
 
-- [ ] **Step 1: Write the failing integration regression**
+- [x] **Step 1: Write the failing integration regression**
 
 ```go
 func TestIntegrationUserServiceDenyOverridesRoleAllow(t *testing.T) {
@@ -145,11 +145,11 @@ func TestIntegrationUserServiceDenyOverridesRoleAllow(t *testing.T) {
 }
 ```
 
-Run: `BIFROST_DATABASE_TEST_URL='postgres://bifrost:bifrost@127.0.0.1:15432/postgres?sslmode=disable' GOTOOLCHAIN=local go test ./internal/database ./internal/auth -run 'Integration|Migrate'`
+Run: `BIFROST_DATABASE_TEST_URL='postgres://bifrost:bifrost@127.0.0.1:15432/postgres?sslmode=disable' GOTOOLCHAIN=auto go test ./internal/database ./internal/auth -run 'Integration|Migrate'`
 
 Expected: FAIL because reusable integration bootstrap helpers and focused integration suites do not exist.
 
-- [ ] **Step 2: Build reusable integration bootstrap helper**
+- [x] **Step 2: Build reusable integration bootstrap helper**
 
 ```go
 func newIntegrationService(t *testing.T) Service {
@@ -160,16 +160,16 @@ func newIntegrationService(t *testing.T) Service {
 }
 ```
 
-- [ ] **Step 3: Add policy, device/session, audit focused suites**
+- [x] **Step 3: Add policy, device/session, audit focused suites**
 
 ```go
 func TestIntegrationDeviceDisabledBlocksRefresh(t *testing.T) { ... }
 func TestIntegrationAuditListReturnsNewestEventsFirst(t *testing.T) { ... }
 ```
 
-- [ ] **Step 4: Run Go integration verification**
+- [x] **Step 4: Run Go integration verification**
 
-Run: `BIFROST_DATABASE_TEST_URL='postgres://bifrost:bifrost@127.0.0.1:15432/postgres?sslmode=disable' GOTOOLCHAIN=local go test ./internal/database ./internal/auth -run 'Integration|Migrate'`
+Run: `BIFROST_DATABASE_TEST_URL='postgres://bifrost:bifrost@127.0.0.1:15432/postgres?sslmode=disable' GOTOOLCHAIN=auto go test ./internal/database ./internal/auth -run 'Integration|Migrate'`
 
 Expected: PASS。
 
@@ -255,9 +255,69 @@ Run: `pnpm lint && pnpm check && pnpm test && pnpm test:infra`
 
 Expected: PASS。
 
+### Task 6: Complete Frontend Vitest Coverage
+
+**Files:**
+- Create: `packages/config-vitest/react.ts`
+- Create: `packages/config-vitest/setup.ts`
+- Create: `apps/admin/vitest.config.ts`
+- Create: `apps/desktop/vitest.config.ts`
+- Create: `packages/ui/vitest.config.ts`
+- Create: `apps/admin/src/features/auth/login-form.test.tsx`
+- Create: `apps/admin/src/features/admin-users/create-user-dialog.test.tsx`
+- Create: `apps/desktop/renderer/src/features/services/services-card.test.tsx`
+- Create: `packages/ui/src/components/interactive.test.tsx`
+
+- [x] **Step 1: Add shared React Vitest config**
+
+```ts
+export const reactVitestConfig = defineConfig({
+  test: {
+    environment: "happy-dom",
+    setupFiles: [setupFile],
+  },
+});
+```
+
+- [x] **Step 2: Add shared UI interactive primitive tests**
+
+```tsx
+render(<Button onClick={onClick}>打开服务</Button>);
+await userEvent.click(screen.getByRole("button", { name: "打开服务" }));
+expect(onClick).toHaveBeenCalledTimes(1);
+```
+
+- [x] **Step 3: Add admin critical form tests**
+
+```tsx
+renderWithQueryClient(<LoginForm />);
+await user.type(screen.getByLabelText("用户名"), "admin");
+await user.click(screen.getByRole("button", { name: "登录后台" }));
+```
+
+- [x] **Step 4: Add desktop state component tests**
+
+```tsx
+useDesktopSessionStore.setState({ session });
+renderWithQueryClient(<ServicesCard />);
+expect(await screen.findByText("GitLab")).not.toBeNull();
+```
+
+- [x] **Step 5: Run frontend package verification**
+
+Run:
+- `pnpm --filter @bifrost/ui test`
+- `pnpm --filter @bifrost/admin test`
+- `pnpm --filter @bifrost/desktop test`
+- `pnpm --filter @bifrost/ui check`
+- `pnpm --filter @bifrost/admin check`
+- `pnpm --filter @bifrost/desktop check`
+
+Expected: PASS。
+
 ## Self-Review
 
-- Spec coverage: 覆盖 Phase 8 中的 Docker 驱动测试启动、数据库初始化/清理、Go 集成测试基座、Playwright 配置与首批 E2E 场景。
+- Spec coverage: 覆盖 Phase 8 中的 Docker 驱动测试启动、数据库初始化/清理、Go 集成测试基座、Playwright 配置、首批 E2E 场景、前端 Vitest 配置、共享 UI 交互测试、后台表单测试和桌面状态组件测试。
 - Placeholder scan: 所有任务都给出了明确文件、命令和示例代码，没有 `TODO` 或“后续补充”式占位。
 - Type consistency: E2E 使用 `admin` 登录与 `alice` 客户端种子数据；数据库基座统一使用 `BIFROST_DATABASE_TEST_URL`；Playwright 场景依赖 root 级 `playwright.config.ts` 与 `tests/e2e/fixtures/*`。
 
@@ -267,4 +327,8 @@ Expected: PASS。
 - 2026-04-18 12:08 CST：完成 Playwright root 配置与首批 4 条 API 级 E2E，覆盖管理员登录、客户端 bootstrap、服务列表、GitLab mock 真实访问、Jenkins deny 与 requestId。
 - 2026-04-18 12:08 CST：执行 `pnpm test:e2e:down && pnpm test:e2e:up && pnpm test:e2e`，4 条 E2E 全部通过。
 - 2026-04-18 12:08 CST：执行 `pnpm test:infra`，4 条 infra 测试全部通过。
-- 2026-04-18 12:10 CST：执行 `pnpm lint`、`pnpm check`、`pnpm test`、`BIFROST_DATABASE_TEST_URL='postgres://bifrost:bifrost@127.0.0.1:15432/postgres?sslmode=disable' GOTOOLCHAIN=local go test ./...`，全部通过。
+- 2026-04-18 12:10 CST：执行 `pnpm lint`、`pnpm check`、`pnpm test`、`BIFROST_DATABASE_TEST_URL='postgres://bifrost:bifrost@127.0.0.1:15432/postgres?sslmode=disable' GOTOOLCHAIN=auto go test ./...`，全部通过。
+- 2026-04-18 12:59 CST：将 Gateway Go 工具链和 Docker 构建镜像精确锁到 `1.26.2`，修复 `golang:1.26-alpine` 在高频 E2E 下触发的标准库 `net/http` 崩溃；新增前端 Vitest 共享配置、后台表单测试、桌面状态组件测试和 UI 交互测试。
+- 2026-04-18 12:35 CST：新增 Go 种子库集成基座与 4 条集成测试，覆盖用户角色写入、设备禁用后刷新拦截、deny 策略生效、审计倒序查询。
+- 2026-04-18 12:35 CST：修复客户端 `RefreshSession` 未重新校验设备状态的问题，设备禁用后刷新现在返回 `DEVICE_DISABLED`。
+- 2026-04-18 12:35 CST：新增后台用户创建、角色授权、服务禁用、上游 `502`、WebSocket 代理 E2E，当前 Playwright 套件共 9 条且全部通过。
