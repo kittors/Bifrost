@@ -48,6 +48,22 @@ func TestAdminUserRoutes(t *testing.T) {
 			Status:      "enabled",
 			Roles:       []string{"role_admin"},
 		},
+		adminUser: auth.AdminUser{
+			ID:          "user_created_01",
+			Username:    "charlie",
+			DisplayName: "Charlie",
+			Email:       "charlie@example.com",
+			Status:      "enabled",
+			Roles:       []string{"role_developer"},
+		},
+		statusAdminUser: auth.AdminUser{
+			ID:          "user_created_01",
+			Username:    "charlie",
+			DisplayName: "Charlie",
+			Email:       "charlie@example.com",
+			Status:      "disabled",
+			Roles:       []string{"role_developer"},
+		},
 	}
 
 	app := server.New(server.Options{
@@ -112,6 +128,52 @@ func TestAdminUserRoutes(t *testing.T) {
 
 	if stub.updateAdminUserInput.UserID != "user_created_01" {
 		t.Fatalf("expected update user id forwarded, got %q", stub.updateAdminUserInput.UserID)
+	}
+
+	detailRecorder := httptest.NewRecorder()
+	detailRequest := httptest.NewRequest(http.MethodGet, "/api/v1/admin/users/user_created_01", nil)
+	detailRequest.Header.Set("Authorization", "Bearer admin-token")
+	app.Handler().ServeHTTP(detailRecorder, detailRequest)
+
+	if detailRecorder.Code != http.StatusOK {
+		t.Fatalf("expected detail status 200, got %d", detailRecorder.Code)
+	}
+	if stub.getAdminUserInput.UserID != "user_created_01" {
+		t.Fatalf("expected detail user id forwarded, got %q", stub.getAdminUserInput.UserID)
+	}
+
+	resetRecorder := httptest.NewRecorder()
+	resetRequest := httptest.NewRequest(
+		http.MethodPost,
+		"/api/v1/admin/users/user_created_01/reset-password",
+		strings.NewReader(`{"password":"NewPassword123!"}`),
+	)
+	resetRequest.Header.Set("Authorization", "Bearer admin-token")
+	resetRequest.Header.Set("Content-Type", "application/json")
+	app.Handler().ServeHTTP(resetRecorder, resetRequest)
+
+	if resetRecorder.Code != http.StatusOK {
+		t.Fatalf("expected reset password status 200, got %d", resetRecorder.Code)
+	}
+	if stub.resetAdminUserPasswordInput.Password != "NewPassword123!" {
+		t.Fatalf("expected reset password forwarded, got %q", stub.resetAdminUserPasswordInput.Password)
+	}
+
+	statusRecorder := httptest.NewRecorder()
+	statusRequest := httptest.NewRequest(
+		http.MethodPost,
+		"/api/v1/admin/users/user_created_01/status",
+		strings.NewReader(`{"status":"disabled"}`),
+	)
+	statusRequest.Header.Set("Authorization", "Bearer admin-token")
+	statusRequest.Header.Set("Content-Type", "application/json")
+	app.Handler().ServeHTTP(statusRecorder, statusRequest)
+
+	if statusRecorder.Code != http.StatusOK {
+		t.Fatalf("expected status update 200, got %d", statusRecorder.Code)
+	}
+	if stub.setAdminUserStatusInput.Status != "disabled" {
+		t.Fatalf("expected disabled status forwarded, got %q", stub.setAdminUserStatusInput.Status)
 	}
 }
 

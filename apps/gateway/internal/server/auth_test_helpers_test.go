@@ -72,6 +72,17 @@ type stubAuthService struct {
 	updatedAdminUser     auth.AdminUser
 	updateAdminUserError error
 
+	getAdminUserInput auth.GetAdminUserInput
+	adminUser         auth.AdminUser
+	getAdminUserError error
+
+	resetAdminUserPasswordInput auth.ResetAdminUserPasswordInput
+	resetAdminUserPasswordError error
+
+	setAdminUserStatusInput auth.SetAdminUserStatusInput
+	statusAdminUser         auth.AdminUser
+	setAdminUserStatusError error
+
 	listAdminRolesInput auth.ListAdminRolesInput
 	adminRoles          auth.AdminRoleListResult
 	adminRolesError     error
@@ -182,6 +193,21 @@ func (s *stubAuthService) CreateAdminUser(_ context.Context, input auth.CreateAd
 func (s *stubAuthService) UpdateAdminUser(_ context.Context, input auth.UpdateAdminUserInput) (auth.AdminUser, error) {
 	s.updateAdminUserInput = input
 	return s.updatedAdminUser, s.updateAdminUserError
+}
+
+func (s *stubAuthService) GetAdminUser(_ context.Context, input auth.GetAdminUserInput) (auth.AdminUser, error) {
+	s.getAdminUserInput = input
+	return s.adminUser, s.getAdminUserError
+}
+
+func (s *stubAuthService) ResetAdminUserPassword(_ context.Context, input auth.ResetAdminUserPasswordInput) error {
+	s.resetAdminUserPasswordInput = input
+	return s.resetAdminUserPasswordError
+}
+
+func (s *stubAuthService) SetAdminUserStatus(_ context.Context, input auth.SetAdminUserStatusInput) (auth.AdminUser, error) {
+	s.setAdminUserStatusInput = input
+	return s.statusAdminUser, s.setAdminUserStatusError
 }
 
 func (s *stubAuthService) ListAdminRoles(_ context.Context, input auth.ListAdminRolesInput) (auth.AdminRoleListResult, error) {

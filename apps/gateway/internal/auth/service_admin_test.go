@@ -115,6 +115,87 @@ func TestServiceAdminUserListCreateAndUpdate(t *testing.T) {
 	}
 }
 
+func TestServiceAdminUserDetailPasswordResetAndStatus(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	dsn := createTestDatabase(t, ctx)
+	if err := database.MigrateUp(ctx, dsn); err != nil {
+		t.Fatalf("migrate up: %v", err)
+	}
+
+	db := openDB(t, dsn)
+	now := time.Date(2026, time.April, 17, 13, 30, 0, 0, time.UTC)
+	service := auth.Service{
+		DB:              db,
+		PasswordHasher:  auth.DefaultPasswordHasher(),
+		TokenIssuer:     auth.TokenIssuer{Secret: []byte("0123456789abcdef0123456789abcdef"), TTL: 15 * time.Minute, Now: func() time.Time { return now }},
+		Now:             func() time.Time { return now },
+		RefreshTokenTTL: 7 * 24 * time.Hour,
+		SessionIDFactory: func() (string, error) {
+			return "session_admin_user_detail_01", nil
+		},
+	}
+
+	insertUserWithRoles(t, ctx, db, "user_admin", "admin", "Administrator", "correct horse battery staple", []roleSeed{{id: "role_admin", name: "admin", displayName: "Administrator"}})
+	insertUserWithRoles(t, ctx, db, "user_alice", "alice", "Alice", "old password", []roleSeed{{id: "role_developer", name: "developer", displayName: "Developer"}})
+
+	loginResult, err := service.AdminLogin(ctx, auth.AdminLoginInput{
+		Username: "admin",
+		Password: "correct horse battery staple",
+	})
+	if err != nil {
+		t.Fatalf("admin login: %v", err)
+	}
+
+	detail, err := service.GetAdminUser(ctx, auth.GetAdminUserInput{
+		AccessToken: loginResult.AccessToken,
+		UserID:      "user_alice",
+	})
+	if err != nil {
+		t.Fatalf("get admin user: %v", err)
+	}
+	if detail.Username != "alice" || detail.Roles[0] != "role_developer" {
+		t.Fatalf("expected alice detail with developer role, got %#v", detail)
+	}
+
+	if err := service.ResetAdminUserPassword(ctx, auth.ResetAdminUserPasswordInput{
+		AccessToken: loginResult.AccessToken,
+		RequestID:   "req_reset_password",
+		UserID:      "user_alice",
+		Password:    "new password",
+	}); err != nil {
+		t.Fatalf("reset admin user password: %v", err)
+	}
+
+	var passwordHash string
+	if err := db.QueryRowContext(ctx, `SELECT password_hash FROM users WHERE id = $1`, "user_alice").Scan(&passwordHash); err != nil {
+		t.Fatalf("query reset password hash: %v", err)
+	}
+	ok, err := auth.DefaultPasswordHasher().Verify(passwordHash, "new password")
+	if err != nil {
+		t.Fatalf("verify reset password: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected reset password to verify")
+	}
+
+	disabled, err := service.SetAdminUserStatus(ctx, auth.SetAdminUserStatusInput{
+		AccessToken: loginResult.AccessToken,
+		RequestID:   "req_disable_user",
+		UserID:      "user_alice",
+		Status:      "disabled",
+	})
+	if err != nil {
+		t.Fatalf("set admin user status: %v", err)
+	}
+	if disabled.Status != "disabled" {
+		t.Fatalf("expected disabled user status, got %q", disabled.Status)
+	}
+}
+
 func TestServiceAdminRoleServiceDeviceAuditAndOverrideManagement(t *testing.T) {
 	t.Parallel()
 

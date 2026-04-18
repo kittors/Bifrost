@@ -109,6 +109,25 @@ type UpdateAdminUserInput struct {
 	RoleIDs     []string
 }
 
+type GetAdminUserInput struct {
+	AccessToken string
+	UserID      string
+}
+
+type ResetAdminUserPasswordInput struct {
+	AccessToken string
+	RequestID   string
+	UserID      string
+	Password    string
+}
+
+type SetAdminUserStatusInput struct {
+	AccessToken string
+	RequestID   string
+	UserID      string
+	Status      string
+}
+
 type ListAdminRolesInput struct {
 	AccessToken string
 	Page        int

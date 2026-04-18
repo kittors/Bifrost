@@ -65,6 +65,9 @@ func parseAdminUserPath(path string) (string, string, bool) {
 	if len(parts) == 2 && parts[1] == "service-overrides" {
 		return parts[0], parts[1], parts[0] != ""
 	}
+	if len(parts) == 2 && (parts[1] == "reset-password" || parts[1] == "status") {
+		return parts[0], parts[1], parts[0] != ""
+	}
 	return "", "", false
 }
 

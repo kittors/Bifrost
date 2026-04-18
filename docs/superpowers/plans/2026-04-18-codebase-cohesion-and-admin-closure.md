@@ -104,7 +104,7 @@ git commit -m "refactor: split gateway auth core and proxy tests"
 - Modify: `apps/gateway/internal/server/server.go`
 - Modify: `apps/gateway/internal/server/response.go`
 
-- [ ] **Step 1: Add failing service tests for user detail, reset password, and enable/disable**
+- [x] **Step 1: Add failing service tests for user detail, reset password, and enable/disable**
 
 ```go
 func TestGetAdminUserReturnsUserWithRoles(t *testing.T) { ... }
@@ -112,13 +112,13 @@ func TestResetAdminUserPasswordReplacesStoredHash(t *testing.T) { ... }
 func TestSetAdminUserStatusDisablesUser(t *testing.T) { ... }
 ```
 
-- [ ] **Step 2: Run the new service tests and confirm they fail**
+- [x] **Step 2: Run the new service tests and confirm they fail**
 
 Run: `BIFROST_DATABASE_TEST_URL='postgres://bifrost:bifrost@127.0.0.1:15432/postgres?sslmode=disable' GOTOOLCHAIN=local go test ./internal/auth -run 'TestGetAdminUserReturnsUserWithRoles|TestResetAdminUserPasswordReplacesStoredHash|TestSetAdminUserStatusDisablesUser'`
 
 Expected: FAIL，提示缺少对应方法或断言不满足。
 
-- [ ] **Step 3: Add narrow auth service methods and audit events**
+- [x] **Step 3: Add narrow auth service methods and audit events**
 
 ```go
 func (s Service) GetAdminUser(ctx context.Context, input GetAdminUserInput) (AdminUser, error) { ... }
@@ -126,7 +126,7 @@ func (s Service) ResetAdminUserPassword(ctx context.Context, input ResetAdminUse
 func (s Service) SetAdminUserStatus(ctx context.Context, input SetAdminUserStatusInput) (AdminUser, error) { ... }
 ```
 
-- [ ] **Step 4: Expose REST endpoints in server handlers**
+- [x] **Step 4: Expose REST endpoints in server handlers**
 
 ```go
 // GET /api/v1/admin/users/{id}
@@ -134,7 +134,7 @@ func (s Service) SetAdminUserStatus(ctx context.Context, input SetAdminUserStatu
 // POST /api/v1/admin/users/{id}/status
 ```
 
-- [ ] **Step 5: Add route tests for success and not-found paths**
+- [x] **Step 5: Add route tests for success and not-found paths**
 
 ```go
 func TestHandleAdminUserByIDReturnsUser(t *testing.T) { ... }
@@ -142,7 +142,7 @@ func TestHandleAdminUserResetPasswordReturnsNoContent(t *testing.T) { ... }
 func TestHandleAdminUserStatusReturnsUpdatedUser(t *testing.T) { ... }
 ```
 
-- [ ] **Step 6: Run gateway verification**
+- [x] **Step 6: Run gateway verification**
 
 Run: `BIFROST_DATABASE_TEST_URL='postgres://bifrost:bifrost@127.0.0.1:15432/postgres?sslmode=disable' GOTOOLCHAIN=local go test ./internal/auth ./internal/server -run 'AdminUser|ResetPassword|Status'`
 

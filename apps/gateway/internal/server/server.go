@@ -65,6 +65,9 @@ type AuthService interface {
 	ListAdminUsers(ctx context.Context, input auth.ListAdminUsersInput) (auth.AdminUserListResult, error)
 	CreateAdminUser(ctx context.Context, input auth.CreateAdminUserInput) (auth.AdminUser, error)
 	UpdateAdminUser(ctx context.Context, input auth.UpdateAdminUserInput) (auth.AdminUser, error)
+	GetAdminUser(ctx context.Context, input auth.GetAdminUserInput) (auth.AdminUser, error)
+	ResetAdminUserPassword(ctx context.Context, input auth.ResetAdminUserPasswordInput) error
+	SetAdminUserStatus(ctx context.Context, input auth.SetAdminUserStatusInput) (auth.AdminUser, error)
 	ListAdminRoles(ctx context.Context, input auth.ListAdminRolesInput) (auth.AdminRoleListResult, error)
 	CreateAdminRole(ctx context.Context, input auth.CreateAdminRoleInput) (auth.AdminRole, error)
 	ListAdminServices(ctx context.Context, input auth.ListAdminServicesInput) (auth.AdminServiceListResult, error)
