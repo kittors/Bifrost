@@ -142,6 +142,11 @@ type CreateAdminRoleInput struct {
 	Description string
 }
 
+type GetAdminServiceInput struct {
+	AccessToken string
+	ServiceID   string
+}
+
 type ListAdminServicesInput struct {
 	AccessToken string
 	Page        int
@@ -149,6 +154,24 @@ type ListAdminServicesInput struct {
 	Keyword     string
 	Status      string
 	Group       string
+}
+
+type UpdateAdminServiceInput struct {
+	AccessToken string
+	ServiceID   string
+	Name        string
+	Description string
+	Group       string
+	Protocol    string
+	UpstreamURL string
+	PublicPath  string
+}
+
+type SetAdminServiceStatusInput struct {
+	AccessToken string
+	RequestID   string
+	ServiceID   string
+	Status      string
 }
 
 type CreateAdminServiceInput struct {
@@ -163,6 +186,11 @@ type CreateAdminServiceInput struct {
 	Enabled     bool
 }
 
+type GetAdminDeviceInput struct {
+	AccessToken string
+	DeviceID    string
+}
+
 type ListAdminDevicesInput struct {
 	AccessToken string
 	Page        int
@@ -170,6 +198,13 @@ type ListAdminDevicesInput struct {
 	Keyword     string
 	Status      string
 	UserID      string
+}
+
+type SetAdminDeviceStatusInput struct {
+	AccessToken string
+	RequestID   string
+	DeviceID    string
+	Status      string
 }
 
 type ListAdminAuditEventsInput struct {

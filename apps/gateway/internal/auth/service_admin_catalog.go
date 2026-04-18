@@ -2,7 +2,11 @@ package auth
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
+	"net/http"
+	"strings"
 
 	"github.com/kittors/bifrost/apps/gateway/internal/contracts"
 )
@@ -133,6 +137,90 @@ func (s Service) ListAdminServices(ctx context.Context, input ListAdminServicesI
 	}, nil
 }
 
+func (s Service) GetAdminService(ctx context.Context, input GetAdminServiceInput) (AdminService, error) {
+	if _, err := s.ensureAdminPrincipal(ctx, input.AccessToken); err != nil {
+		return AdminService{}, err
+	}
+
+	return s.loadAdminService(ctx, input.ServiceID)
+}
+
+func (s Service) UpdateAdminService(ctx context.Context, input UpdateAdminServiceInput) (AdminService, error) {
+	if _, err := s.ensureAdminPrincipal(ctx, input.AccessToken); err != nil {
+		return AdminService{}, err
+	}
+
+	result, err := s.db().ExecContext(
+		ctx,
+		`UPDATE services
+		SET name = $2, description = $3, group_name = $4, protocol = $5, upstream_url = $6, public_path = $7, updated_at = $8
+		WHERE id = $1`,
+		input.ServiceID,
+		input.Name,
+		input.Description,
+		input.Group,
+		input.Protocol,
+		input.UpstreamURL,
+		input.PublicPath,
+		s.now().UTC(),
+	)
+	if err != nil {
+		return AdminService{}, fmt.Errorf("update admin service: %w", err)
+	}
+	if err := ensureServiceMutationAffected(result); err != nil {
+		return AdminService{}, err
+	}
+
+	return s.loadAdminService(ctx, input.ServiceID)
+}
+
+func (s Service) SetAdminServiceStatus(ctx context.Context, input SetAdminServiceStatusInput) (AdminService, error) {
+	principal, err := s.ensureAdminPrincipal(ctx, input.AccessToken)
+	if err != nil {
+		return AdminService{}, err
+	}
+
+	status := strings.TrimSpace(input.Status)
+	if status != "enabled" && status != "disabled" {
+		return AdminService{}, &ServiceError{
+			StatusCode:  http.StatusBadRequest,
+			Code:        contracts.ErrorCodeCommonBadRequest,
+			Message:     "status must be enabled or disabled",
+			UserMessage: "请求参数不正确",
+		}
+	}
+
+	result, err := s.db().ExecContext(
+		ctx,
+		`UPDATE services
+		SET status = $2, updated_at = $3
+		WHERE id = $1`,
+		input.ServiceID,
+		status,
+		s.now().UTC(),
+	)
+	if err != nil {
+		return AdminService{}, fmt.Errorf("update admin service status: %w", err)
+	}
+	if err := ensureServiceMutationAffected(result); err != nil {
+		return AdminService{}, err
+	}
+
+	if err := s.recordAuditEvent(ctx, auditEventInput{
+		RequestID:   input.RequestID,
+		Type:        contracts.AuditEventTypeAdminServiceUpdated,
+		ActorUserID: principal.User.ID,
+		TargetType:  "service",
+		TargetID:    input.ServiceID,
+		Result:      "success",
+		Summary:     "admin service status updated",
+	}); err != nil {
+		return AdminService{}, err
+	}
+
+	return s.loadAdminService(ctx, input.ServiceID)
+}
+
 func (s Service) CreateAdminService(ctx context.Context, input CreateAdminServiceInput) (AdminService, error) {
 	if _, err := s.ensureAdminPrincipal(ctx, input.AccessToken); err != nil {
 		return AdminService{}, err
@@ -230,6 +318,61 @@ func (s Service) ListAdminDevices(ctx context.Context, input ListAdminDevicesInp
 	}, nil
 }
 
+func (s Service) GetAdminDevice(ctx context.Context, input GetAdminDeviceInput) (AdminDevice, error) {
+	if _, err := s.ensureAdminPrincipal(ctx, input.AccessToken); err != nil {
+		return AdminDevice{}, err
+	}
+
+	return s.loadAdminDevice(ctx, input.DeviceID)
+}
+
+func (s Service) SetAdminDeviceStatus(ctx context.Context, input SetAdminDeviceStatusInput) (AdminDevice, error) {
+	if _, err := s.ensureAdminPrincipal(ctx, input.AccessToken); err != nil {
+		return AdminDevice{}, err
+	}
+
+	status := strings.TrimSpace(input.Status)
+	if status != "trusted" && status != "disabled" {
+		return AdminDevice{}, &ServiceError{
+			StatusCode:  http.StatusBadRequest,
+			Code:        contracts.ErrorCodeCommonBadRequest,
+			Message:     "status must be trusted or disabled",
+			UserMessage: "请求参数不正确",
+		}
+	}
+
+	result, err := s.db().ExecContext(
+		ctx,
+		`UPDATE devices
+		SET status = $2, updated_at = $3
+		WHERE id = $1`,
+		input.DeviceID,
+		status,
+		s.now().UTC(),
+	)
+	if err != nil {
+		return AdminDevice{}, fmt.Errorf("update admin device status: %w", err)
+	}
+	if err := ensureDeviceMutationAffected(result); err != nil {
+		return AdminDevice{}, err
+	}
+
+	if status == "disabled" {
+		if _, err := s.db().ExecContext(
+			ctx,
+			`UPDATE sessions
+			SET status = 'revoked', revoked_at = $2
+			WHERE device_id = $1 AND status = 'active'`,
+			input.DeviceID,
+			s.now().UTC(),
+		); err != nil {
+			return AdminDevice{}, fmt.Errorf("revoke sessions for disabled device: %w", err)
+		}
+	}
+
+	return s.loadAdminDevice(ctx, input.DeviceID)
+}
+
 func (s Service) ListAdminAuditEvents(ctx context.Context, input ListAdminAuditEventsInput) (AdminAuditEventListResult, error) {
 	if _, err := s.ensureAdminPrincipal(ctx, input.AccessToken); err != nil {
 		return AdminAuditEventListResult{}, err
@@ -295,4 +438,87 @@ func (s Service) ReplaceRoleServices(ctx context.Context, input ReplaceRoleServi
 		}
 	}
 	return tx.Commit()
+}
+
+func (s Service) loadAdminService(ctx context.Context, serviceID string) (AdminService, error) {
+	row := s.db().QueryRowContext(
+		ctx,
+		`SELECT id, key, name, description, group_name, protocol, upstream_url, public_path, status
+		FROM services
+		WHERE id = $1`,
+		serviceID,
+	)
+
+	var service AdminService
+	if err := row.Scan(&service.ID, &service.Key, &service.Name, &service.Description, &service.Group, &service.Protocol, &service.UpstreamURL, &service.PublicPath, &service.Status); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return AdminService{}, &ServiceError{
+				StatusCode:  http.StatusNotFound,
+				Code:        contracts.ErrorCodeServiceNotFound,
+				Message:     "service not found",
+				UserMessage: "服务不存在",
+			}
+		}
+		return AdminService{}, fmt.Errorf("query admin service: %w", err)
+	}
+
+	return service, nil
+}
+
+func (s Service) loadAdminDevice(ctx context.Context, deviceID string) (AdminDevice, error) {
+	row := s.db().QueryRowContext(
+		ctx,
+		`SELECT d.id, d.user_id, u.username, d.name, d.os, d.client_version, d.public_key_fingerprint, d.status
+		FROM devices d
+		INNER JOIN users u ON u.id = d.user_id
+		WHERE d.id = $1`,
+		deviceID,
+	)
+
+	var device AdminDevice
+	if err := row.Scan(&device.ID, &device.UserID, &device.UserUsername, &device.Name, &device.OS, &device.ClientVersion, &device.PublicKeyFingerprint, &device.Status); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return AdminDevice{}, &ServiceError{
+				StatusCode:  http.StatusNotFound,
+				Code:        contracts.ErrorCodeDeviceNotFound,
+				Message:     "device not found",
+				UserMessage: "设备不存在",
+			}
+		}
+		return AdminDevice{}, fmt.Errorf("query admin device: %w", err)
+	}
+
+	return device, nil
+}
+
+func ensureServiceMutationAffected(result sql.Result) error {
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("admin service mutation rows affected: %w", err)
+	}
+	if affected == 0 {
+		return &ServiceError{
+			StatusCode:  http.StatusNotFound,
+			Code:        contracts.ErrorCodeServiceNotFound,
+			Message:     "service not found",
+			UserMessage: "服务不存在",
+		}
+	}
+	return nil
+}
+
+func ensureDeviceMutationAffected(result sql.Result) error {
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("admin device mutation rows affected: %w", err)
+	}
+	if affected == 0 {
+		return &ServiceError{
+			StatusCode:  http.StatusNotFound,
+			Code:        contracts.ErrorCodeDeviceNotFound,
+			Message:     "device not found",
+			UserMessage: "设备不存在",
+		}
+	}
+	return nil
 }

@@ -168,7 +168,7 @@ git commit -m "feat: add admin user detail and control endpoints"
 - Modify: `apps/gateway/internal/server/device_routes_test.go`
 - Modify: `apps/gateway/internal/server/server.go`
 
-- [ ] **Step 1: Add failing tests for service/device detail and status updates**
+- [x] **Step 1: Add failing tests for service/device detail and status updates**
 
 ```go
 func TestGetAdminServiceReturnsCatalogEntry(t *testing.T) { ... }
@@ -178,13 +178,13 @@ func TestGetAdminDeviceReturnsTrustedDevice(t *testing.T) { ... }
 func TestSetAdminDeviceStatusDisablesDevice(t *testing.T) { ... }
 ```
 
-- [ ] **Step 2: Run targeted backend tests**
+- [x] **Step 2: Run targeted backend tests**
 
 Run: `BIFROST_DATABASE_TEST_URL='postgres://bifrost:bifrost@127.0.0.1:15432/postgres?sslmode=disable' GOTOOLCHAIN=local go test ./internal/auth ./internal/server -run 'AdminService|AdminDevice'`
 
 Expected: FAIL。
 
-- [ ] **Step 3: Implement minimal service methods**
+- [x] **Step 3: Implement minimal service methods**
 
 ```go
 func (s Service) GetAdminService(ctx context.Context, input GetAdminServiceInput) (AdminService, error) { ... }
@@ -194,7 +194,7 @@ func (s Service) GetAdminDevice(ctx context.Context, input GetAdminDeviceInput) 
 func (s Service) SetAdminDeviceStatus(ctx context.Context, input SetAdminDeviceStatusInput) (AdminDevice, error) { ... }
 ```
 
-- [ ] **Step 4: Wire server endpoints**
+- [x] **Step 4: Wire server endpoints**
 
 ```go
 // GET /api/v1/admin/services/{id}
@@ -204,7 +204,7 @@ func (s Service) SetAdminDeviceStatus(ctx context.Context, input SetAdminDeviceS
 // POST /api/v1/admin/devices/{id}/status
 ```
 
-- [ ] **Step 5: Run backend verification**
+- [x] **Step 5: Run backend verification**
 
 Run: `BIFROST_DATABASE_TEST_URL='postgres://bifrost:bifrost@127.0.0.1:15432/postgres?sslmode=disable' GOTOOLCHAIN=local go test ./internal/auth ./internal/server`
 

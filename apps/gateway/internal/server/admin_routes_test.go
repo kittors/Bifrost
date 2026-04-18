@@ -191,10 +191,15 @@ func TestAdminConfigRoutes(t *testing.T) {
 			Pagination: contracts.Pagination{Page: 1, PageSize: 20, Total: 1, TotalPages: 1},
 		},
 		createdAdminService: auth.AdminService{ID: "service_created_01", Key: "gitlab", Name: "GitLab", Status: "enabled"},
+		adminService:        auth.AdminService{ID: "service_docs", Key: "docs", Name: "Docs", Status: "enabled"},
+		updatedAdminService: auth.AdminService{ID: "service_docs", Key: "docs", Name: "Docs Portal", Status: "enabled"},
+		statusAdminService:  auth.AdminService{ID: "service_docs", Key: "docs", Name: "Docs Portal", Status: "disabled"},
 		adminDevices: auth.AdminDeviceListResult{
 			Items:      []auth.AdminDevice{{ID: "device_01", UserID: "user_alice", Name: "Alice Mac", Status: "trusted"}},
 			Pagination: contracts.Pagination{Page: 1, PageSize: 20, Total: 1, TotalPages: 1},
 		},
+		adminDevice:       auth.AdminDevice{ID: "device_01", UserID: "user_alice", UserUsername: "alice", Name: "Alice Mac", Status: "trusted"},
+		statusAdminDevice: auth.AdminDevice{ID: "device_01", UserID: "user_alice", UserUsername: "alice", Name: "Alice Mac", Status: "disabled"},
 		adminAuditEvents: auth.AdminAuditEventListResult{
 			Items:      []auth.AdminAuditEvent{{ID: "audit_01", Type: "auth.login.succeeded", Result: "success"}},
 			Pagination: contracts.Pagination{Page: 1, PageSize: 20, Total: 1, TotalPages: 1},
@@ -227,7 +232,12 @@ func TestAdminConfigRoutes(t *testing.T) {
 		{http.MethodPost, "/api/v1/admin/roles", `{"name":"qa","displayName":"QA","description":"Quality"}`, http.StatusCreated},
 		{http.MethodGet, "/api/v1/admin/services?group=shared", "", http.StatusOK},
 		{http.MethodPost, "/api/v1/admin/services", `{"key":"gitlab","name":"GitLab","description":"Code","group":"engineering","protocol":"http","upstreamUrl":"http://gitlab:8080","publicPath":"/s/gitlab","enabled":true}`, http.StatusCreated},
+		{http.MethodGet, "/api/v1/admin/services/service_docs", "", http.StatusOK},
+		{http.MethodPatch, "/api/v1/admin/services/service_docs", `{"name":"Docs Portal","description":"Docs","group":"shared","protocol":"http","upstreamUrl":"http://docs:8080","publicPath":"/s/docs"}`, http.StatusOK},
+		{http.MethodPost, "/api/v1/admin/services/service_docs/status", `{"status":"disabled"}`, http.StatusOK},
 		{http.MethodGet, "/api/v1/admin/devices?userId=user_alice", "", http.StatusOK},
+		{http.MethodGet, "/api/v1/admin/devices/device_01", "", http.StatusOK},
+		{http.MethodPost, "/api/v1/admin/devices/device_01/status", `{"status":"disabled"}`, http.StatusOK},
 		{http.MethodGet, "/api/v1/admin/audit-events?type=auth.login.succeeded", "", http.StatusOK},
 		{http.MethodPut, "/api/v1/admin/roles/role_ops/services", `{"serviceIds":["service_docs"]}`, http.StatusOK},
 		{http.MethodPut, "/api/v1/admin/users/user_alice/service-overrides", `{"allowServiceIds":["service_docs"],"denyServiceIds":["service_gitlab"]}`, http.StatusOK},
@@ -260,5 +270,14 @@ func TestAdminConfigRoutes(t *testing.T) {
 	}
 	if stub.replaceUserServiceOverridesInput.UserID != "user_alice" {
 		t.Fatalf("expected override user id user_alice, got %q", stub.replaceUserServiceOverridesInput.UserID)
+	}
+	if stub.updateAdminServiceInput.Name != "Docs Portal" {
+		t.Fatalf("expected service update name Docs Portal, got %q", stub.updateAdminServiceInput.Name)
+	}
+	if stub.setAdminServiceStatusInput.Status != "disabled" {
+		t.Fatalf("expected service disabled status, got %q", stub.setAdminServiceStatusInput.Status)
+	}
+	if stub.setAdminDeviceStatusInput.Status != "disabled" {
+		t.Fatalf("expected device disabled status, got %q", stub.setAdminDeviceStatusInput.Status)
 	}
 }

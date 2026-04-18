@@ -45,12 +45,54 @@ func (a *App) handleAdminServices(writer http.ResponseWriter, request *http.Requ
 	}
 }
 
+func (a *App) handleAdminServiceByID(writer http.ResponseWriter, request *http.Request) {
+	serviceID, action, ok := parseAdminServicePath(request.URL.Path)
+	if !ok {
+		writer.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	if action == "" && request.Method == http.MethodGet {
+		a.handleAdminServiceDetail(writer, request, serviceID)
+		return
+	}
+	if action == "" && request.Method == http.MethodPatch {
+		a.handleAdminServiceUpdate(writer, request, serviceID)
+		return
+	}
+	if action == "status" && request.Method == http.MethodPost {
+		a.handleAdminServiceStatusSet(writer, request, serviceID)
+		return
+	}
+
+	writer.WriteHeader(http.StatusMethodNotAllowed)
+}
+
 func (a *App) handleAdminDevices(writer http.ResponseWriter, request *http.Request) {
 	if request.Method != http.MethodGet {
 		writer.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 	a.handleAdminDeviceList(writer, request)
+}
+
+func (a *App) handleAdminDeviceByID(writer http.ResponseWriter, request *http.Request) {
+	deviceID, action, ok := parseAdminDevicePath(request.URL.Path)
+	if !ok {
+		writer.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	if action == "" && request.Method == http.MethodGet {
+		a.handleAdminDeviceDetail(writer, request, deviceID)
+		return
+	}
+	if action == "status" && request.Method == http.MethodPost {
+		a.handleAdminDeviceStatusSet(writer, request, deviceID)
+		return
+	}
+
+	writer.WriteHeader(http.StatusMethodNotAllowed)
 }
 
 func (a *App) handleAdminAuditEvents(writer http.ResponseWriter, request *http.Request) {
@@ -195,6 +237,95 @@ func (a *App) handleAdminServiceCreate(writer http.ResponseWriter, request *http
 	a.writeAPISuccess(writer, http.StatusCreated, requestID, timestamp, adminServicePayload(service))
 }
 
+func (a *App) handleAdminServiceDetail(writer http.ResponseWriter, request *http.Request, serviceID string) {
+	requestID, timestamp := a.requestMeta(request)
+	token, ok := bearerToken(request)
+	if !ok {
+		a.writeAPIError(writer, requestID, timestamp, missingBearerTokenError())
+		return
+	}
+
+	service, err := a.authService.GetAdminService(request.Context(), auth.GetAdminServiceInput{
+		AccessToken: token,
+		ServiceID:   serviceID,
+	})
+	if err != nil {
+		a.writeMappedError(writer, requestID, timestamp, err)
+		return
+	}
+
+	a.writeAPISuccess(writer, http.StatusOK, requestID, timestamp, adminServicePayload(service))
+}
+
+func (a *App) handleAdminServiceUpdate(writer http.ResponseWriter, request *http.Request, serviceID string) {
+	requestID, timestamp := a.requestMeta(request)
+	token, ok := bearerToken(request)
+	if !ok {
+		a.writeAPIError(writer, requestID, timestamp, missingBearerTokenError())
+		return
+	}
+
+	var payload struct {
+		Name        string `json:"name"`
+		Description string `json:"description"`
+		Group       string `json:"group"`
+		Protocol    string `json:"protocol"`
+		UpstreamURL string `json:"upstreamUrl"`
+		PublicPath  string `json:"publicPath"`
+	}
+	if err := json.NewDecoder(request.Body).Decode(&payload); err != nil {
+		a.writeAPIError(writer, requestID, timestamp, badJSONError())
+		return
+	}
+
+	service, err := a.authService.UpdateAdminService(request.Context(), auth.UpdateAdminServiceInput{
+		AccessToken: token,
+		ServiceID:   serviceID,
+		Name:        payload.Name,
+		Description: payload.Description,
+		Group:       payload.Group,
+		Protocol:    payload.Protocol,
+		UpstreamURL: payload.UpstreamURL,
+		PublicPath:  payload.PublicPath,
+	})
+	if err != nil {
+		a.writeMappedError(writer, requestID, timestamp, err)
+		return
+	}
+
+	a.writeAPISuccess(writer, http.StatusOK, requestID, timestamp, adminServicePayload(service))
+}
+
+func (a *App) handleAdminServiceStatusSet(writer http.ResponseWriter, request *http.Request, serviceID string) {
+	requestID, timestamp := a.requestMeta(request)
+	token, ok := bearerToken(request)
+	if !ok {
+		a.writeAPIError(writer, requestID, timestamp, missingBearerTokenError())
+		return
+	}
+
+	var payload struct {
+		Status string `json:"status"`
+	}
+	if err := json.NewDecoder(request.Body).Decode(&payload); err != nil {
+		a.writeAPIError(writer, requestID, timestamp, badJSONError())
+		return
+	}
+
+	service, err := a.authService.SetAdminServiceStatus(request.Context(), auth.SetAdminServiceStatusInput{
+		AccessToken: token,
+		RequestID:   requestID,
+		ServiceID:   serviceID,
+		Status:      payload.Status,
+	})
+	if err != nil {
+		a.writeMappedError(writer, requestID, timestamp, err)
+		return
+	}
+
+	a.writeAPISuccess(writer, http.StatusOK, requestID, timestamp, adminServicePayload(service))
+}
+
 func (a *App) handleAdminDeviceList(writer http.ResponseWriter, request *http.Request) {
 	requestID, timestamp := a.requestMeta(request)
 	token, ok := bearerToken(request)
@@ -224,6 +355,56 @@ func (a *App) handleAdminDeviceList(writer http.ResponseWriter, request *http.Re
 	a.writeAPISuccessWithPagination(writer, http.StatusOK, requestID, timestamp, map[string]any{
 		"items": items,
 	}, &result.Pagination)
+}
+
+func (a *App) handleAdminDeviceDetail(writer http.ResponseWriter, request *http.Request, deviceID string) {
+	requestID, timestamp := a.requestMeta(request)
+	token, ok := bearerToken(request)
+	if !ok {
+		a.writeAPIError(writer, requestID, timestamp, missingBearerTokenError())
+		return
+	}
+
+	device, err := a.authService.GetAdminDevice(request.Context(), auth.GetAdminDeviceInput{
+		AccessToken: token,
+		DeviceID:    deviceID,
+	})
+	if err != nil {
+		a.writeMappedError(writer, requestID, timestamp, err)
+		return
+	}
+
+	a.writeAPISuccess(writer, http.StatusOK, requestID, timestamp, adminDevicePayload(device))
+}
+
+func (a *App) handleAdminDeviceStatusSet(writer http.ResponseWriter, request *http.Request, deviceID string) {
+	requestID, timestamp := a.requestMeta(request)
+	token, ok := bearerToken(request)
+	if !ok {
+		a.writeAPIError(writer, requestID, timestamp, missingBearerTokenError())
+		return
+	}
+
+	var payload struct {
+		Status string `json:"status"`
+	}
+	if err := json.NewDecoder(request.Body).Decode(&payload); err != nil {
+		a.writeAPIError(writer, requestID, timestamp, badJSONError())
+		return
+	}
+
+	device, err := a.authService.SetAdminDeviceStatus(request.Context(), auth.SetAdminDeviceStatusInput{
+		AccessToken: token,
+		RequestID:   requestID,
+		DeviceID:    deviceID,
+		Status:      payload.Status,
+	})
+	if err != nil {
+		a.writeMappedError(writer, requestID, timestamp, err)
+		return
+	}
+
+	a.writeAPISuccess(writer, http.StatusOK, requestID, timestamp, adminDevicePayload(device))
 }
 
 func (a *App) handleAdminAuditEventList(writer http.ResponseWriter, request *http.Request) {

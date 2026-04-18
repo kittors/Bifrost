@@ -298,6 +298,47 @@ func TestServiceAdminRoleServiceDeviceAuditAndOverrideManagement(t *testing.T) {
 		t.Fatalf("expected service_created_01, got %q", createdService.ID)
 	}
 
+	serviceDetail, err := service.GetAdminService(ctx, auth.GetAdminServiceInput{
+		AccessToken: loginResult.AccessToken,
+		ServiceID:   "service_docs",
+	})
+	if err != nil {
+		t.Fatalf("get admin service: %v", err)
+	}
+	if serviceDetail.Key != "docs" {
+		t.Fatalf("expected docs service detail, got %#v", serviceDetail)
+	}
+
+	updatedService, err := service.UpdateAdminService(ctx, auth.UpdateAdminServiceInput{
+		AccessToken: loginResult.AccessToken,
+		ServiceID:   "service_docs",
+		Name:        "Docs Portal",
+		Description: "Shared docs portal",
+		Group:       "shared",
+		Protocol:    "http",
+		UpstreamURL: "http://docs:8080",
+		PublicPath:  "/s/docs",
+	})
+	if err != nil {
+		t.Fatalf("update admin service: %v", err)
+	}
+	if updatedService.Name != "Docs Portal" {
+		t.Fatalf("expected updated service name, got %#v", updatedService)
+	}
+
+	disabledService, err := service.SetAdminServiceStatus(ctx, auth.SetAdminServiceStatusInput{
+		AccessToken: loginResult.AccessToken,
+		RequestID:   "req_disable_service",
+		ServiceID:   "service_docs",
+		Status:      "disabled",
+	})
+	if err != nil {
+		t.Fatalf("disable admin service: %v", err)
+	}
+	if disabledService.Status != "disabled" {
+		t.Fatalf("expected disabled service status, got %q", disabledService.Status)
+	}
+
 	devices, err := service.ListAdminDevices(ctx, auth.ListAdminDevicesInput{
 		AccessToken: loginResult.AccessToken,
 		Page:        1,
@@ -309,6 +350,30 @@ func TestServiceAdminRoleServiceDeviceAuditAndOverrideManagement(t *testing.T) {
 	}
 	if devices.Pagination.Total != 1 {
 		t.Fatalf("expected 1 device for alice, got %d", devices.Pagination.Total)
+	}
+
+	deviceDetail, err := service.GetAdminDevice(ctx, auth.GetAdminDeviceInput{
+		AccessToken: loginResult.AccessToken,
+		DeviceID:    "device_alice_admin_01",
+	})
+	if err != nil {
+		t.Fatalf("get admin device: %v", err)
+	}
+	if deviceDetail.UserUsername != "alice" {
+		t.Fatalf("expected alice device detail, got %#v", deviceDetail)
+	}
+
+	disabledDevice, err := service.SetAdminDeviceStatus(ctx, auth.SetAdminDeviceStatusInput{
+		AccessToken: loginResult.AccessToken,
+		RequestID:   "req_disable_device",
+		DeviceID:    "device_alice_admin_01",
+		Status:      "disabled",
+	})
+	if err != nil {
+		t.Fatalf("disable admin device: %v", err)
+	}
+	if disabledDevice.Status != "disabled" {
+		t.Fatalf("expected disabled device status, got %q", disabledDevice.Status)
 	}
 
 	audits, err := service.ListAdminAuditEvents(ctx, auth.ListAdminAuditEventsInput{

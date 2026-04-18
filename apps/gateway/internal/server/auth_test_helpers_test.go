@@ -95,6 +95,18 @@ type stubAuthService struct {
 	adminServices          auth.AdminServiceListResult
 	adminServicesError     error
 
+	getAdminServiceInput auth.GetAdminServiceInput
+	adminService         auth.AdminService
+	getAdminServiceError error
+
+	updateAdminServiceInput auth.UpdateAdminServiceInput
+	updatedAdminService     auth.AdminService
+	updateAdminServiceError error
+
+	setAdminServiceStatusInput auth.SetAdminServiceStatusInput
+	statusAdminService         auth.AdminService
+	setAdminServiceStatusError error
+
 	createAdminServiceInput auth.CreateAdminServiceInput
 	createdAdminService     auth.AdminService
 	createAdminServiceError error
@@ -102,6 +114,14 @@ type stubAuthService struct {
 	listAdminDevicesInput auth.ListAdminDevicesInput
 	adminDevices          auth.AdminDeviceListResult
 	adminDevicesError     error
+
+	getAdminDeviceInput auth.GetAdminDeviceInput
+	adminDevice         auth.AdminDevice
+	getAdminDeviceError error
+
+	setAdminDeviceStatusInput auth.SetAdminDeviceStatusInput
+	statusAdminDevice         auth.AdminDevice
+	setAdminDeviceStatusError error
 
 	listAdminAuditEventsInput auth.ListAdminAuditEventsInput
 	adminAuditEvents          auth.AdminAuditEventListResult
@@ -225,6 +245,21 @@ func (s *stubAuthService) ListAdminServices(_ context.Context, input auth.ListAd
 	return s.adminServices, s.adminServicesError
 }
 
+func (s *stubAuthService) GetAdminService(_ context.Context, input auth.GetAdminServiceInput) (auth.AdminService, error) {
+	s.getAdminServiceInput = input
+	return s.adminService, s.getAdminServiceError
+}
+
+func (s *stubAuthService) UpdateAdminService(_ context.Context, input auth.UpdateAdminServiceInput) (auth.AdminService, error) {
+	s.updateAdminServiceInput = input
+	return s.updatedAdminService, s.updateAdminServiceError
+}
+
+func (s *stubAuthService) SetAdminServiceStatus(_ context.Context, input auth.SetAdminServiceStatusInput) (auth.AdminService, error) {
+	s.setAdminServiceStatusInput = input
+	return s.statusAdminService, s.setAdminServiceStatusError
+}
+
 func (s *stubAuthService) CreateAdminService(_ context.Context, input auth.CreateAdminServiceInput) (auth.AdminService, error) {
 	s.createAdminServiceInput = input
 	return s.createdAdminService, s.createAdminServiceError
@@ -233,6 +268,16 @@ func (s *stubAuthService) CreateAdminService(_ context.Context, input auth.Creat
 func (s *stubAuthService) ListAdminDevices(_ context.Context, input auth.ListAdminDevicesInput) (auth.AdminDeviceListResult, error) {
 	s.listAdminDevicesInput = input
 	return s.adminDevices, s.adminDevicesError
+}
+
+func (s *stubAuthService) GetAdminDevice(_ context.Context, input auth.GetAdminDeviceInput) (auth.AdminDevice, error) {
+	s.getAdminDeviceInput = input
+	return s.adminDevice, s.getAdminDeviceError
+}
+
+func (s *stubAuthService) SetAdminDeviceStatus(_ context.Context, input auth.SetAdminDeviceStatusInput) (auth.AdminDevice, error) {
+	s.setAdminDeviceStatusInput = input
+	return s.statusAdminDevice, s.setAdminDeviceStatusError
 }
 
 func (s *stubAuthService) ListAdminAuditEvents(_ context.Context, input auth.ListAdminAuditEventsInput) (auth.AdminAuditEventListResult, error) {

@@ -84,6 +84,38 @@ func parseAdminRolePath(path string) (string, string, bool) {
 	return "", "", false
 }
 
+func parseAdminServicePath(path string) (string, string, bool) {
+	remaining := strings.TrimPrefix(path, "/api/v1/admin/services/")
+	if remaining == path || remaining == "" {
+		return "", "", false
+	}
+
+	parts := strings.Split(strings.Trim(remaining, "/"), "/")
+	if len(parts) == 1 {
+		return parts[0], "", parts[0] != ""
+	}
+	if len(parts) == 2 && parts[1] == "status" {
+		return parts[0], parts[1], parts[0] != ""
+	}
+	return "", "", false
+}
+
+func parseAdminDevicePath(path string) (string, string, bool) {
+	remaining := strings.TrimPrefix(path, "/api/v1/admin/devices/")
+	if remaining == path || remaining == "" {
+		return "", "", false
+	}
+
+	parts := strings.Split(strings.Trim(remaining, "/"), "/")
+	if len(parts) == 1 {
+		return parts[0], "", parts[0] != ""
+	}
+	if len(parts) == 2 && parts[1] == "status" {
+		return parts[0], parts[1], parts[0] != ""
+	}
+	return "", "", false
+}
+
 func parseProxyPath(path string) (string, string, bool) {
 	remaining := strings.TrimPrefix(path, "/s/")
 	if remaining == path || remaining == "" {
