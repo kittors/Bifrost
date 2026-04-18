@@ -197,6 +197,36 @@ test:e2e
 
 具体命令在实现阶段写入 `package.json`、`turbo.json`、Makefile 或 Taskfile。
 
+当前已落地的 Docker 驱动 E2E 命令：
+
+```bash
+pnpm test:e2e:up
+pnpm test:e2e
+pnpm test:e2e:down
+```
+
+默认测试端口与普通开发端口隔离：
+
+| 用途 | 默认端口 |
+|---|---:|
+| PostgreSQL | `15432` |
+| Gateway | `18080` |
+| Admin Web | `15173` |
+
+如需覆盖端口，可在执行命令前设置：
+
+```bash
+BIFROST_DEV_GATEWAY_PORT=28080 BIFROST_DEV_ADMIN_PORT=25173 BIFROST_DEV_POSTGRES_PORT=25432 pnpm test:e2e:up
+```
+
+E2E 启动脚本会执行：
+
+1. 启动 PostgreSQL 与多个 mock 上游容器。
+2. 等待 Docker healthcheck 成功。
+3. 执行数据库 migration 与种子数据初始化。
+4. 重新构建并启动 Gateway 与 Admin Web 容器。
+5. 等待 `readyz` 与 Admin health 通过。
+
 ## 9. 数据初始化
 
 本地环境必须支持一键初始化：

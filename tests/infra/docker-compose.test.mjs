@@ -62,3 +62,14 @@ test("root scripts and env example expose local infrastructure commands", () => 
   assert.match(envExample, /^BIFROST_ADMIN_BASE_URL=/m);
   assert.match(envExample, /^BIFROST_DATABASE_URL=/m);
 });
+
+test("root scripts expose docker-driven e2e orchestration commands", () => {
+  const packageJson = JSON.parse(
+    readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
+  );
+
+  assert.equal(packageJson.scripts["test:e2e"], "playwright test");
+  assert.equal(packageJson.scripts["test:e2e:up"], "node ./scripts/testing/e2e-up.mjs");
+  assert.equal(packageJson.scripts["test:e2e:seed"], "node ./scripts/testing/e2e-seed.mjs");
+  assert.equal(packageJson.scripts["test:e2e:down"], "node ./scripts/testing/e2e-down.mjs");
+});
