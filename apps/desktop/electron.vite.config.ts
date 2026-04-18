@@ -22,6 +22,14 @@ export default defineConfig({
   },
   renderer: {
     root: resolve("renderer"),
+    build: {
+      outDir: resolve("out/renderer"),
+      rollupOptions: {
+        input: {
+          index: resolve("renderer/index.html"),
+        },
+      },
+    },
     plugins: [tailwindcss(), react()],
   },
 });

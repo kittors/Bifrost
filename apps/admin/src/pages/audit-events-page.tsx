@@ -6,18 +6,22 @@ import { listAdminAuditEvents, requireAccessToken } from "../entities/admin/api"
 import type { AdminAuditEvent } from "../entities/admin/types";
 import { getCurrentAdminSession } from "../features/auth/store";
 import { formatAuditType } from "../shared/lib/format";
+import { PaginationBar } from "../shared/ui/pagination-bar";
 import { QueryErrorState } from "../shared/ui/query-error-state";
 import { StatusBadge } from "../shared/ui/status-badge";
+
+const auditPageSize = 20;
 
 export function AuditEventsPage() {
   const session = getCurrentAdminSession();
   const accessToken = requireAccessToken(session);
+  const [page, setPage] = useState(1);
   const [result, setResult] = useState("");
   const [selectedEvent, setSelectedEvent] = useState<AdminAuditEvent | null>(null);
 
   const auditQuery = useQuery({
-    queryFn: () => listAdminAuditEvents({ accessToken, pageSize: 20, result }),
-    queryKey: ["admin-audit-events", accessToken, result],
+    queryFn: () => listAdminAuditEvents({ accessToken, page, pageSize: auditPageSize, result }),
+    queryKey: ["admin-audit-events", accessToken, page, result],
   });
 
   const rows = auditQuery.data?.items ?? [];
@@ -38,7 +42,10 @@ export function AuditEventsPage() {
       <section className="rounded-[14px] border border-border bg-surface p-4">
         <select
           className="h-[32px] rounded-[6px] border border-border bg-surface px-3 text-[13px] leading-[20px]"
-          onChange={(event) => setResult(event.target.value)}
+          onChange={(event) => {
+            setResult(event.target.value);
+            setPage(1);
+          }}
           value={result}
         >
           <option value="">全部结果</option>
@@ -86,6 +93,13 @@ export function AuditEventsPage() {
           </Table.Root>
         )}
       </section>
+
+      <PaginationBar
+        onPageChange={setPage}
+        page={page}
+        pageSize={auditPageSize}
+        total={auditQuery.data?.total ?? 0}
+      />
 
       <Drawer.Root
         onOpenChange={(open) => !open && setSelectedEvent(null)}

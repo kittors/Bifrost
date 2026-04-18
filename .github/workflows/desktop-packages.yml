@@ -1,0 +1,64 @@
+name: Desktop Packages
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - dev
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build-desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - artifact_name: desktop-macos
+            os: macos-latest
+            script: dist:mac
+          - artifact_name: desktop-windows
+            os: windows-latest
+            script: dist:win
+          - artifact_name: desktop-linux
+            os: ubuntu-latest
+            script: dist:linux
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          cache: pnpm
+          node-version: 24.11.1
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build desktop application
+        run: pnpm --filter @bifrost/desktop build
+
+      - name: Package desktop artifacts
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: pnpm --filter @bifrost/desktop ${{ matrix.script }}
+
+      - name: Upload desktop artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: apps/desktop/release/**
+          if-no-files-found: error
+          retention-days: 14

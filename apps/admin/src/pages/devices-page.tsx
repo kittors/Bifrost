@@ -6,19 +6,24 @@ import { DeviceDetailDrawer } from "../features/admin-devices/device-detail-draw
 import { DevicesFilterBar } from "../features/admin-devices/devices-filter-bar";
 import { DevicesTable } from "../features/admin-devices/devices-table";
 import { getCurrentAdminSession } from "../features/auth/store";
+import { PaginationBar } from "../shared/ui/pagination-bar";
 import { QueryErrorState } from "../shared/ui/query-error-state";
+
+const devicesPageSize = 20;
 
 export function DevicesPage() {
   const session = getCurrentAdminSession();
   const accessToken = requireAccessToken(session);
   const queryClient = useQueryClient();
   const [keyword, setKeyword] = useState("");
+  const [page, setPage] = useState(1);
   const [status, setStatus] = useState("");
   const [selectedDeviceID, setSelectedDeviceID] = useState<string | null>(null);
 
   const devicesQuery = useQuery({
-    queryFn: () => listAdminDevices({ accessToken, keyword, status }),
-    queryKey: ["admin-devices", accessToken, keyword, status],
+    queryFn: () =>
+      listAdminDevices({ accessToken, keyword, page, pageSize: devicesPageSize, status }),
+    queryKey: ["admin-devices", accessToken, keyword, page, status],
   });
 
   const rows = devicesQuery.data?.items ?? [];
@@ -36,8 +41,14 @@ export function DevicesPage() {
 
       <DevicesFilterBar
         keyword={keyword}
-        onKeywordChange={setKeyword}
-        onStatusChange={setStatus}
+        onKeywordChange={(value) => {
+          setKeyword(value);
+          setPage(1);
+        }}
+        onStatusChange={(value) => {
+          setStatus(value);
+          setPage(1);
+        }}
         status={status}
       />
 
@@ -52,6 +63,13 @@ export function DevicesPage() {
       ) : (
         <DevicesTable onOpenDetails={setSelectedDeviceID} rows={rows} totalDevices={totalDevices} />
       )}
+
+      <PaginationBar
+        onPageChange={setPage}
+        page={page}
+        pageSize={devicesPageSize}
+        total={totalDevices}
+      />
 
       <DeviceDetailDrawer
         accessToken={accessToken}

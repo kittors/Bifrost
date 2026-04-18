@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - dev
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  quality-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: postgres
+          POSTGRES_PASSWORD: bifrost
+          POSTGRES_USER: bifrost
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U bifrost -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          cache: pnpm
+          node-version: 24.11.1
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: 1.26.2
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Type and contract checks
+        run: pnpm check
+
+      - name: Workspace tests
+        run: pnpm test
+
+      - name: Infrastructure tests
+        run: pnpm test:infra
+
+      - name: Go test suite
+        env:
+          BIFROST_DATABASE_TEST_URL: postgres://bifrost:bifrost@127.0.0.1:5432/postgres?sslmode=disable
+        working-directory: apps/gateway
+        run: go test ./...
+
+      - name: End-to-end tests
+        run: pnpm test:e2e
+
+      - name: Upload Playwright artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: test-results/playwright
+          if-no-files-found: ignore
+          retention-days: 7

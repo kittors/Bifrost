@@ -13,21 +13,26 @@ import { EditServiceDialog } from "../features/admin-services/edit-service-dialo
 import { ServicesFilterBar } from "../features/admin-services/services-filter-bar";
 import { ServicesTable } from "../features/admin-services/services-table";
 import { getCurrentAdminSession } from "../features/auth/store";
+import { PaginationBar } from "../shared/ui/pagination-bar";
 import { QueryErrorState } from "../shared/ui/query-error-state";
+
+const servicesPageSize = 20;
 
 export function ServicesPage() {
   const session = getCurrentAdminSession();
   const accessToken = requireAccessToken(session);
   const queryClient = useQueryClient();
   const [keyword, setKeyword] = useState("");
+  const [page, setPage] = useState(1);
   const [status, setStatus] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [editingService, setEditingService] = useState<AdminService | null>(null);
   const [pendingServiceID, setPendingServiceID] = useState<string | null>(null);
 
   const servicesQuery = useQuery({
-    queryFn: () => listAdminServices({ accessToken, keyword, status }),
-    queryKey: ["admin-services", accessToken, keyword, status],
+    queryFn: () =>
+      listAdminServices({ accessToken, keyword, page, pageSize: servicesPageSize, status }),
+    queryKey: ["admin-services", accessToken, keyword, page, status],
   });
 
   const rows = servicesQuery.data?.items ?? [];
@@ -75,8 +80,14 @@ export function ServicesPage() {
 
       <ServicesFilterBar
         keyword={keyword}
-        onKeywordChange={setKeyword}
-        onStatusChange={setStatus}
+        onKeywordChange={(value) => {
+          setKeyword(value);
+          setPage(1);
+        }}
+        onStatusChange={(value) => {
+          setStatus(value);
+          setPage(1);
+        }}
         status={status}
       />
 
@@ -99,6 +110,13 @@ export function ServicesPage() {
           totalServices={totalServices}
         />
       )}
+
+      <PaginationBar
+        onPageChange={setPage}
+        page={page}
+        pageSize={servicesPageSize}
+        total={totalServices}
+      />
 
       <EditServiceDialog
         accessToken={accessToken}

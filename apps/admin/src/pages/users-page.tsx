@@ -14,13 +14,17 @@ import { UserServiceOverridesDrawer } from "../features/admin-users/user-service
 import { UsersFilterBar } from "../features/admin-users/users-filter-bar";
 import { UsersTable } from "../features/admin-users/users-table";
 import { getCurrentAdminSession } from "../features/auth/store";
+import { PaginationBar } from "../shared/ui/pagination-bar";
 import { QueryErrorState } from "../shared/ui/query-error-state";
+
+const usersPageSize = 20;
 
 export function UsersPage() {
   const session = getCurrentAdminSession();
   const accessToken = requireAccessToken(session);
   const queryClient = useQueryClient();
   const [keyword, setKeyword] = useState("");
+  const [page, setPage] = useState(1);
   const [status, setStatus] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedUserID, setSelectedUserID] = useState<string | null>(null);
@@ -31,9 +35,11 @@ export function UsersPage() {
       listAdminUsers({
         accessToken,
         keyword,
+        page,
+        pageSize: usersPageSize,
         status,
       }),
-    queryKey: ["admin-users", accessToken, keyword, status],
+    queryKey: ["admin-users", accessToken, keyword, page, status],
   });
 
   const rolesQuery = useQuery({
@@ -73,12 +79,19 @@ export function UsersPage() {
 
       <UsersFilterBar
         keyword={keyword}
-        onKeywordChange={setKeyword}
+        onKeywordChange={(value) => {
+          setKeyword(value);
+          setPage(1);
+        }}
         onReset={() => {
           setKeyword("");
+          setPage(1);
           setStatus("");
         }}
-        onStatusChange={setStatus}
+        onStatusChange={(value) => {
+          setStatus(value);
+          setPage(1);
+        }}
         status={status}
       />
 
@@ -100,6 +113,13 @@ export function UsersPage() {
           totalUsers={totalUsers}
         />
       )}
+
+      <PaginationBar
+        onPageChange={setPage}
+        page={page}
+        pageSize={usersPageSize}
+        total={totalUsers}
+      />
 
       <UserDetailDrawer
         accessToken={accessToken}

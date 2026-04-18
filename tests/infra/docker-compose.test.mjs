@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 
 const requiredServices = [
@@ -58,6 +58,14 @@ test("root scripts and env example expose local infrastructure commands", () => 
     "docker compose up -d postgres gateway admin-web mock-gitlab mock-jenkins mock-docs mock-internal-admin",
   );
   assert.equal(packageJson.scripts["dev:infra:down"], "docker compose down -v --remove-orphans");
+  assert.equal(
+    packageJson.scripts["build:gateway:image"],
+    "docker build -f apps/gateway/Dockerfile -t bifrost/gateway:dev .",
+  );
+  assert.equal(
+    packageJson.scripts["build:admin:image"],
+    "docker build -f docker/admin-web/Dockerfile -t bifrost/admin-web:dev .",
+  );
   assert.match(envExample, /^BIFROST_PUBLIC_BASE_URL=/m);
   assert.match(envExample, /^BIFROST_ADMIN_BASE_URL=/m);
   assert.match(envExample, /^BIFROST_DATABASE_URL=/m);
@@ -72,4 +80,66 @@ test("root scripts expose docker-driven e2e orchestration commands", () => {
   assert.equal(packageJson.scripts["test:e2e:up"], "node ./scripts/testing/e2e-up.mjs");
   assert.equal(packageJson.scripts["test:e2e:seed"], "node ./scripts/testing/e2e-seed.mjs");
   assert.equal(packageJson.scripts["test:e2e:down"], "node ./scripts/testing/e2e-down.mjs");
+});
+
+test("admin web image builds the real Vite application", () => {
+  const dockerfile = readFileSync(
+    new URL("../../docker/admin-web/Dockerfile", import.meta.url),
+    "utf8",
+  );
+
+  assert.ok(
+    existsSync(new URL("../../docker/admin-web/nginx.conf", import.meta.url)),
+    "admin nginx runtime config is required",
+  );
+  assert.match(dockerfile, /pnpm --filter @bifrost\/admin build/);
+  assert.match(dockerfile, /COPY --from=builder .*apps\/admin\/dist/);
+});
+
+test("desktop package scripts cover macOS Windows and Linux installers", () => {
+  const desktopPackageJson = JSON.parse(
+    readFileSync(new URL("../../apps/desktop/package.json", import.meta.url), "utf8"),
+  );
+
+  assert.equal(desktopPackageJson.devDependencies["electron-builder"], "26.8.1");
+  assert.ok(desktopPackageJson.main, "desktop main entry is required for electron-builder");
+  assert.equal(typeof desktopPackageJson.scripts["dist:mac"], "string");
+  assert.equal(typeof desktopPackageJson.scripts["dist:win"], "string");
+  assert.equal(typeof desktopPackageJson.scripts["dist:linux"], "string");
+  assert.equal(typeof desktopPackageJson.scripts["dist:dir"], "string");
+});
+
+test("github actions workflows exist for CI gate and desktop artifacts", () => {
+  const ciWorkflowURL = new URL("../../.github/workflows/ci.yml", import.meta.url);
+  const desktopWorkflowURL = new URL(
+    "../../.github/workflows/desktop-packages.yml",
+    import.meta.url,
+  );
+
+  assert.ok(existsSync(ciWorkflowURL), "ci workflow is required");
+  assert.ok(existsSync(desktopWorkflowURL), "desktop artifact workflow is required");
+
+  const ciWorkflow = readFileSync(ciWorkflowURL, "utf8");
+  const desktopWorkflow = readFileSync(desktopWorkflowURL, "utf8");
+
+  for (const command of [
+    "pnpm lint",
+    "pnpm check",
+    "pnpm test",
+    "pnpm test:infra",
+    "pnpm test:e2e",
+  ]) {
+    assert.match(ciWorkflow, new RegExp(command.replaceAll(" ", "\\s+")));
+  }
+  assert.match(ciWorkflow, /go test \.\/\.\.\./);
+  assert.match(ciWorkflow, /test-results\/playwright/);
+  assert.match(ciWorkflow, /retention-days:\s*7/);
+
+  for (const osName of ["macos-latest", "windows-latest", "ubuntu-latest"]) {
+    assert.match(desktopWorkflow, new RegExp(osName));
+  }
+  assert.match(desktopWorkflow, /dist:mac/);
+  assert.match(desktopWorkflow, /dist:win/);
+  assert.match(desktopWorkflow, /dist:linux/);
+  assert.match(desktopWorkflow, /apps\/desktop\/release\/\*\*/);
 });

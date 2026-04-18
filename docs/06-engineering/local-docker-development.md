@@ -200,10 +200,19 @@ test:e2e
 当前已落地的 Docker 驱动 E2E 命令：
 
 ```bash
-pnpm test:e2e:up
 pnpm test:e2e
+pnpm test:e2e:up
 pnpm test:e2e:down
 ```
+
+其中 `pnpm test:e2e` 会自动执行：
+
+1. 清理旧测试容器与数据库卷。
+2. 启动 PostgreSQL、mock 上游、Gateway 与 Admin Web。
+3. 执行 Playwright E2E。
+4. 回收测试容器与卷。
+
+适合 CI 与本地全量回归。`pnpm test:e2e:up` / `down` 仍保留给聚焦调试使用。
 
 默认测试端口与普通开发端口隔离：
 

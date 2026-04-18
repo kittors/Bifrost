@@ -9,20 +9,24 @@ import { RoleServicesDrawer } from "../features/admin-roles/role-services-drawer
 import { RolesFilterBar } from "../features/admin-roles/roles-filter-bar";
 import { RolesTable } from "../features/admin-roles/roles-table";
 import { getCurrentAdminSession } from "../features/auth/store";
+import { PaginationBar } from "../shared/ui/pagination-bar";
 import { QueryErrorState } from "../shared/ui/query-error-state";
+
+const rolesPageSize = 20;
 
 export function RolesPage() {
   const session = getCurrentAdminSession();
   const accessToken = requireAccessToken(session);
   const queryClient = useQueryClient();
   const [keyword, setKeyword] = useState("");
+  const [page, setPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
   const [editingRole, setEditingRole] = useState<AdminRole | null>(null);
   const [permissionRole, setPermissionRole] = useState<AdminRole | null>(null);
 
   const rolesQuery = useQuery({
-    queryFn: () => listAdminRoles({ accessToken, keyword }),
-    queryKey: ["admin-roles", accessToken, keyword],
+    queryFn: () => listAdminRoles({ accessToken, keyword, page, pageSize: rolesPageSize }),
+    queryKey: ["admin-roles", accessToken, keyword, page],
   });
   const servicesQuery = useQuery({
     queryFn: () => listAdminServices({ accessToken, pageSize: 200 }),
@@ -56,9 +60,13 @@ export function RolesPage() {
 
       <RolesFilterBar
         keyword={keyword}
-        onKeywordChange={setKeyword}
+        onKeywordChange={(value) => {
+          setKeyword(value);
+          setPage(1);
+        }}
         onReset={() => {
           setKeyword("");
+          setPage(1);
         }}
       />
 
@@ -79,6 +87,13 @@ export function RolesPage() {
           totalRoles={totalRoles}
         />
       )}
+
+      <PaginationBar
+        onPageChange={setPage}
+        page={page}
+        pageSize={rolesPageSize}
+        total={totalRoles}
+      />
 
       <EditRoleDialog
         accessToken={accessToken}

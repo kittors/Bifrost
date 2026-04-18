@@ -1,0 +1,33 @@
+appId: com.kittors.bifrost.desktop
+productName: Bifrost
+artifactName: Bifrost-${version}-${os}-${arch}.${ext}
+asar: true
+directories:
+  output: release
+  buildResources: resources
+files:
+  - out/**
+  - package.json
+mac:
+  category: public.app-category.productivity
+  target:
+    - target: dmg
+      arch:
+        - universal
+    - target: zip
+      arch:
+        - universal
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+linux:
+  category: Utility
+  target:
+    - AppImage
+    - deb
+    - tar.gz

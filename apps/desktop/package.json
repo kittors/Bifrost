@@ -1,12 +1,19 @@
 {
   "name": "@bifrost/desktop",
   "version": "0.0.0",
+  "description": "Bifrost desktop client",
+  "main": "out/main/index.js",
   "private": true,
   "type": "module",
+  "author": "Kittors",
   "scripts": {
     "build": "electron-vite build && tsc --noEmit",
     "check": "tsc --noEmit",
     "dev": "electron-vite dev",
+    "dist:dir": "electron-builder --config electron-builder.yml --dir",
+    "dist:linux": "electron-builder --config electron-builder.yml --linux AppImage deb tar.gz",
+    "dist:mac": "electron-builder --config electron-builder.yml --mac dmg zip",
+    "dist:win": "electron-builder --config electron-builder.yml --win nsis",
     "test": "vitest run"
   },
   "dependencies": {
@@ -14,22 +21,23 @@
     "@bifrost/design-tokens": "workspace:*",
     "@bifrost/ui": "workspace:*",
     "@tanstack/react-query": "5.99.0",
-    "electron": "41.2.1",
     "lucide-react": "1.8.0",
     "react": "19.2.5",
     "react-dom": "19.2.5",
     "zustand": "5.0.12"
   },
   "devDependencies": {
+    "@bifrost/config-typescript": "workspace:*",
     "@bifrost/config-vitest": "workspace:*",
+    "@tailwindcss/vite": "4.2.2",
     "@testing-library/react": "16.3.2",
     "@testing-library/user-event": "14.6.1",
-    "@bifrost/config-typescript": "workspace:*",
-    "@tailwindcss/vite": "4.2.2",
     "@types/node": "25.6.0",
     "@types/react": "19.2.6",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.0.1",
+    "electron": "41.2.1",
+    "electron-builder": "26.8.1",
     "electron-vite": "6.0.0-beta.1",
     "happy-dom": "20.9.0",
     "typescript": "6.0.3"

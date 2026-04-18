@@ -18,20 +18,20 @@ import { useAdminSessionStore } from "../../features/auth/store";
 
 type ThemeMode = "light" | "dark";
 
-const themeStorageKey = "bifrost.admin.theme";
+export const adminThemeStorageKey = "bifrost.admin.theme";
 
-function readTheme(): ThemeMode {
+export function readAdminTheme(): ThemeMode {
   if (typeof window === "undefined") {
     return "light";
   }
 
-  const stored = window.localStorage.getItem(themeStorageKey);
+  const stored = window.localStorage.getItem(adminThemeStorageKey);
   return stored === "dark" ? "dark" : "light";
 }
 
-function applyTheme(theme: ThemeMode) {
+export function applyAdminTheme(theme: ThemeMode) {
   document.documentElement.setAttribute("data-theme", theme);
-  window.localStorage.setItem(themeStorageKey, theme);
+  window.localStorage.setItem(adminThemeStorageKey, theme);
 }
 
 const navigationItems = [
@@ -57,10 +57,10 @@ export function AdminShell() {
   const location = useLocation();
   const session = useAdminSessionStore((state) => state.session);
   const clearSession = useAdminSessionStore((state) => state.clearSession);
-  const [theme, setTheme] = useState<ThemeMode>(readTheme);
+  const [theme, setTheme] = useState<ThemeMode>(readAdminTheme);
 
   useEffect(() => {
-    applyTheme(theme);
+    applyAdminTheme(theme);
   }, [theme]);
 
   return (
