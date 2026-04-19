@@ -2,12 +2,12 @@ import { Button, Input } from "@bifrost/ui";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { createServiceAccessURL, listClientServices } from "../../entities/services/api";
+import { listClientServices } from "../../entities/services/api";
 import { useDesktopSessionStore } from "../../entities/session/store";
 import { resolveApiErrorMessage } from "../../shared/lib/http";
 
 export function ServicesCard() {
-  const { session, setErrorMessage } = useDesktopSessionStore();
+  const { localProxyStatus, session, setErrorMessage } = useDesktopSessionStore();
   const [keyword, setKeyword] = useState("");
 
   const servicesQuery = useQuery({
@@ -24,7 +24,6 @@ export function ServicesCard() {
     },
     queryKey: ["desktop-services", session?.accessToken, keyword],
   });
-
   if (!session) {
     return null;
   }
@@ -51,39 +50,40 @@ export function ServicesCard() {
 
       <div className="flex flex-1 flex-col gap-2">
         {(servicesQuery.data ?? []).map((service) => (
-          <div
-            className="flex min-h-[40px] items-center justify-between rounded-[10px] border border-border px-3 py-2"
-            key={service.id}
-          >
-            <div className="min-w-0">
-              <div className="truncate text-[13px] leading-[20px] font-medium">{service.name}</div>
-              <div className="truncate text-[12px] leading-[18px] text-text-secondary">
-                {service.group} · {service.accessSource}
+          <div className="rounded-[10px] border border-border px-3 py-2" key={service.id}>
+            <div className="flex min-h-[40px] items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="truncate text-[13px] leading-[20px] font-medium">
+                  {service.name}
+                </div>
+                <div className="truncate text-[12px] leading-[18px] text-text-secondary">
+                  {service.group} · {service.accessSource}
+                </div>
               </div>
+              <Button
+                onClick={async () => {
+                  try {
+                    await window.bifrostDesktop.localProxy.openService(
+                      service.publicPath ?? `/s/${service.key}/`,
+                    );
+                  } catch (error) {
+                    setErrorMessage(resolveApiErrorMessage(error, "打开服务失败"));
+                  }
+                }}
+                size="sm"
+              >
+                打开
+              </Button>
             </div>
-            <Button
-              onClick={async () => {
-                try {
-                  const access = await createServiceAccessURL({
-                    accessToken: session.accessToken,
-                    baseURL: session.gatewayBaseURL,
-                    serviceId: service.id,
-                  });
-                  const serviceURL =
-                    access.url ??
-                    new URL(
-                      access.publicPath ?? `/s/${service.key}/`,
-                      session.gatewayBaseURL,
-                    ).toString();
-                  await window.bifrostDesktop.openExternal(serviceURL);
-                } catch (error) {
-                  setErrorMessage(resolveApiErrorMessage(error, "打开服务失败"));
-                }
-              }}
-              size="sm"
-            >
-              打开
-            </Button>
+            <div className="mt-2 truncate text-[11px] leading-[16px] text-text-secondary">
+              本地入口：
+              {localProxyStatus.running
+                ? `${localProxyStatus.baseURL}${service.publicPath ?? `/s/${service.key}`}/`.replace(
+                    /([^:]\/)\/+/g,
+                    "$1",
+                  )
+                : "本地代理未启动"}
+            </div>
           </div>
         ))}
 

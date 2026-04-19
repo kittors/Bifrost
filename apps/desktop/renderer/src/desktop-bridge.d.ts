@@ -2,6 +2,7 @@ import type {
   DesktopAppInfo,
   DesktopDeviceIdentity,
   DesktopDiagnosticsSnapshot,
+  DesktopLocalProxyStatus,
   DesktopSessionSnapshot,
 } from "../../electron/shared/types";
 
@@ -20,6 +21,12 @@ declare global {
       };
       diagnostics: {
         snapshot: () => Promise<DesktopDiagnosticsSnapshot>;
+      };
+      localProxy: {
+        openService: (publicPath: string) => Promise<string>;
+        start: (session: DesktopSessionSnapshot) => Promise<DesktopLocalProxyStatus>;
+        status: () => Promise<DesktopLocalProxyStatus>;
+        stop: () => Promise<void>;
       };
       openExternal: (url: string) => Promise<void>;
       session: {

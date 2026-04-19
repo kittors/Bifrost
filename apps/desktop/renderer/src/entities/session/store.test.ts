@@ -37,6 +37,22 @@ describe("desktop session store", () => {
       diagnostics: {
         snapshot: vi.fn(),
       },
+      localProxy: {
+        openService: vi.fn(),
+        start: vi.fn().mockResolvedValue({
+          baseURL: "http://127.0.0.1:18080",
+          host: "127.0.0.1",
+          port: 18080,
+          running: true,
+        }),
+        status: vi.fn().mockResolvedValue({
+          baseURL: "http://127.0.0.1:18080",
+          host: "127.0.0.1",
+          port: 18080,
+          running: true,
+        }),
+        stop: vi.fn().mockResolvedValue(undefined),
+      },
       openExternal: vi.fn(),
       session: {
         clear: vi.fn().mockResolvedValue(undefined),
@@ -54,6 +70,113 @@ describe("desktop session store", () => {
         setItem: (key: string, value: string) => localStorageStub.set(key, value),
       },
     });
+  });
+
+  it("starts the local proxy after saving a desktop session", async () => {
+    const { useDesktopSessionStore } = await import("./store");
+
+    await useDesktopSessionStore.getState().saveSession(sessionSnapshot);
+
+    expect(window.bifrostDesktop.session.save).toHaveBeenCalledWith(sessionSnapshot);
+    expect(window.bifrostDesktop.localProxy.start).toHaveBeenCalledWith(sessionSnapshot);
+    expect(useDesktopSessionStore.getState().localProxyStatus).toEqual({
+      baseURL: "http://127.0.0.1:18080",
+      host: "127.0.0.1",
+      port: 18080,
+      running: true,
+    });
+  });
+
+  it("starts the local proxy after hydrating and refreshing a stored session", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        json: async () => ({
+          success: true,
+          data: {
+            accessToken: "access_refreshed",
+            expiresIn: 900,
+            refreshToken: "refresh_refreshed",
+            user: sessionSnapshot.user,
+          },
+          meta: { requestId: "req_refresh_ok", timestamp: "2026-04-18T12:01:00Z" },
+        }),
+        status: 200,
+      }),
+    );
+
+    const { useDesktopSessionStore } = await import("./store");
+
+    await useDesktopSessionStore.getState().hydrateFromSecureStore();
+
+    expect(window.bifrostDesktop.localProxy.start).toHaveBeenCalledWith(
+      expect.objectContaining({
+        accessToken: "access_refreshed",
+        refreshToken: "refresh_refreshed",
+      }),
+    );
+    expect(useDesktopSessionStore.getState().localProxyStatus?.running).toBe(true);
+  });
+
+  it("stops the local proxy when clearing the desktop session", async () => {
+    const { useDesktopSessionStore } = await import("./store");
+
+    await useDesktopSessionStore.getState().saveSession(sessionSnapshot);
+    await useDesktopSessionStore.getState().clearSession();
+
+    expect(window.bifrostDesktop.localProxy.stop).toHaveBeenCalledTimes(1);
+    expect(window.bifrostDesktop.session.clear).toHaveBeenCalledTimes(1);
+    expect(useDesktopSessionStore.getState().session).toBeNull();
+    expect(useDesktopSessionStore.getState().localProxyStatus?.running).toBe(false);
+  });
+
+  it("refreshes an active session and rotates the local proxy token snapshot", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        json: async () => ({
+          success: true,
+          data: {
+            accessToken: "access_rotated",
+            expiresIn: 900,
+            refreshToken: "refresh_rotated",
+            user: sessionSnapshot.user,
+          },
+          meta: { requestId: "req_refresh_active", timestamp: "2026-04-18T12:01:00Z" },
+        }),
+        status: 200,
+      }),
+    );
+    const { useDesktopSessionStore } = await import("./store");
+
+    await useDesktopSessionStore.getState().saveSession(sessionSnapshot);
+    await useDesktopSessionStore.getState().refreshActiveSession();
+
+    expect(window.bifrostDesktop.session.save).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        accessToken: "access_rotated",
+        refreshToken: "refresh_rotated",
+      }),
+    );
+    expect(window.bifrostDesktop.localProxy.start).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        accessToken: "access_rotated",
+        refreshToken: "refresh_rotated",
+      }),
+    );
+  });
+
+  it("keeps the session but exposes an error when local proxy startup fails", async () => {
+    vi.mocked(window.bifrostDesktop.localProxy.start).mockRejectedValueOnce(
+      new Error("no available local proxy port"),
+    );
+    const { useDesktopSessionStore } = await import("./store");
+
+    await useDesktopSessionStore.getState().saveSession(sessionSnapshot);
+
+    expect(useDesktopSessionStore.getState().session).toEqual(sessionSnapshot);
+    expect(useDesktopSessionStore.getState().errorMessage).toBe("no available local proxy port");
+    expect(useDesktopSessionStore.getState().localProxyStatus?.running).toBe(false);
   });
 
   it("shows userMessage when refresh fails because device is disabled", async () => {

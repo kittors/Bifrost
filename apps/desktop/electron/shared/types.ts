@@ -35,3 +35,10 @@ export type DesktopDiagnosticsSnapshot = {
   routeManagedByBifrost: false;
   dnsManagedByBifrost: false;
 };
+
+export type DesktopLocalProxyStatus = {
+  baseURL: string;
+  host: "127.0.0.1";
+  port: number;
+  running: boolean;
+};

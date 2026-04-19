@@ -6,14 +6,12 @@ import { useDesktopSessionStore } from "../../entities/session/store";
 import { renderWithQueryClient } from "../../test/render";
 import { ServicesCard } from "./services-card";
 
-const { createServiceAccessURLMock, listClientServicesMock, openExternalMock } = vi.hoisted(() => ({
-  createServiceAccessURLMock: vi.fn(),
+const { listClientServicesMock, openServiceMock } = vi.hoisted(() => ({
   listClientServicesMock: vi.fn(),
-  openExternalMock: vi.fn().mockResolvedValue(undefined),
+  openServiceMock: vi.fn().mockResolvedValue("http://127.0.0.1:18080/s/gitlab/"),
 }));
 
 vi.mock("../../entities/services/api", () => ({
-  createServiceAccessURL: createServiceAccessURLMock,
   listClientServices: listClientServicesMock,
 }));
 
@@ -34,9 +32,8 @@ const session = {
 describe("ServicesCard", () => {
   beforeEach(() => {
     listClientServicesMock.mockReset();
-    createServiceAccessURLMock.mockReset();
-    openExternalMock.mockReset();
-    openExternalMock.mockResolvedValue(undefined);
+    openServiceMock.mockReset();
+    openServiceMock.mockResolvedValue("http://127.0.0.1:18080/s/gitlab/");
 
     window.bifrostDesktop = {
       app: {
@@ -52,7 +49,13 @@ describe("ServicesCard", () => {
       diagnostics: {
         snapshot: vi.fn(),
       },
-      openExternal: openExternalMock,
+      localProxy: {
+        openService: openServiceMock,
+        start: vi.fn(),
+        status: vi.fn(),
+        stop: vi.fn(),
+      },
+      openExternal: vi.fn(),
       session: {
         clear: vi.fn().mockResolvedValue(undefined),
         load: vi.fn().mockResolvedValue(null),
@@ -63,6 +66,12 @@ describe("ServicesCard", () => {
     useDesktopSessionStore.setState({
       errorMessage: null,
       gatewayBaseURL: session.gatewayBaseURL,
+      localProxyStatus: {
+        baseURL: "http://127.0.0.1:18080",
+        host: "127.0.0.1",
+        port: 18080,
+        running: true,
+      },
       session: null,
       view: "services",
     });
@@ -75,7 +84,7 @@ describe("ServicesCard", () => {
     expect(listClientServicesMock).not.toHaveBeenCalled();
   });
 
-  it("loads services and opens the gateway access URL without changing local network settings", async () => {
+  it("loads services and opens the local proxy service URL without changing local network settings", async () => {
     listClientServicesMock.mockResolvedValue([
       {
         accessSource: "role",
@@ -86,25 +95,18 @@ describe("ServicesCard", () => {
         status: "enabled",
       },
     ]);
-    createServiceAccessURLMock.mockResolvedValue({
-      url: "http://127.0.0.1:8080/s/gitlab/",
-    });
     useDesktopSessionStore.setState({ session });
 
     renderWithQueryClient(<ServicesCard />);
 
     expect(await screen.findByText("GitLab")).not.toBeNull();
     expect(screen.queryByText("engineering · role")).not.toBeNull();
+    expect(screen.queryByText("本地入口：http://127.0.0.1:18080/s/gitlab/")).not.toBeNull();
 
     await userEvent.click(screen.getByRole("button", { name: "打开" }));
 
     await waitFor(() => {
-      expect(openExternalMock).toHaveBeenCalledWith("http://127.0.0.1:8080/s/gitlab/");
-    });
-    expect(createServiceAccessURLMock).toHaveBeenCalledWith({
-      accessToken: session.accessToken,
-      baseURL: session.gatewayBaseURL,
-      serviceId: "service_gitlab",
+      expect(openServiceMock).toHaveBeenCalledWith("/s/gitlab/");
     });
   });
 });

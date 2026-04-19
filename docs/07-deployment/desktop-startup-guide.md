@@ -1,6 +1,6 @@
 # Desktop Client 启动说明
 
-Desktop Client 是一个小卡片式访问入口，只负责登录、设备信任、展示可访问服务和打开浏览器访问网关。
+Desktop Client 是一个小卡片式访问入口，负责登录、设备信任、展示可访问服务，并在登录后启动 Bifrost 专用本地回环代理。
 
 ## 本地开发
 
@@ -45,7 +45,26 @@ apps/desktop/release
 - 不修改系统路由。
 - 不安装 VPN 驱动。
 
-客户端仅通过 Gateway API 登录并获取服务访问 URL，实际访问由系统默认浏览器打开。
+客户端仅通过 Gateway API 登录并启动本机回环入口，实际访问由系统默认浏览器或 API 工具访问 `127.0.0.1` 完成。
+
+当前访问模型为：
+
+```text
+浏览器 / API 工具
+-> http://127.0.0.1:18080/s/{serviceKey}/...
+-> Desktop Client Main Process 本地代理
+-> Gateway /s/{serviceKey}
+-> 私有服务 upstream
+```
+
+约束：
+
+- 本地代理只监听 `127.0.0.1`
+- 默认端口从 `18080` 起自动避让到 `18099`
+- 支持 HTTP 请求与 WebSocket `Upgrade`，用于 GitLab 等需要长连接的 Web 服务
+- 客户端退出登录后，本地代理立即停止
+- 未启动客户端或未登录时，本地入口不可用
+- 不开放任何系统级代理设置
 
 ## 签名与公证
 

@@ -5,7 +5,7 @@ export default mergeConfig(
   reactVitestConfig,
   defineConfig({
     test: {
-      include: ["renderer/src/**/*.{test,spec}.{ts,tsx}"],
+      include: ["electron/main/**/*.{test,spec}.ts", "renderer/src/**/*.{test,spec}.{ts,tsx}"],
     },
   }),
 );

@@ -19,6 +19,14 @@ contextBridge.exposeInMainWorld("bifrostDesktop", {
   diagnostics: {
     snapshot: () => ipcRenderer.invoke(desktopIPC.diagnosticsSnapshot),
   },
+  localProxy: {
+    openService: (publicPath: string) =>
+      ipcRenderer.invoke(desktopIPC.localProxyOpenService, publicPath),
+    start: (session: DesktopSessionSnapshot) =>
+      ipcRenderer.invoke(desktopIPC.localProxyStart, session),
+    status: () => ipcRenderer.invoke(desktopIPC.localProxyStatus),
+    stop: () => ipcRenderer.invoke(desktopIPC.localProxyStop),
+  },
   openExternal: (url: string) => ipcRenderer.invoke(desktopIPC.openExternal, url),
   session: {
     clear: () => ipcRenderer.invoke(desktopIPC.sessionClear),

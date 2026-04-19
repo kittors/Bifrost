@@ -17,6 +17,8 @@ export function DesktopApp() {
     device,
     errorMessage,
     hydrateFromSecureStore,
+    localProxyStatus,
+    refreshActiveSession,
     session,
     setDevice,
     setErrorMessage,
@@ -36,6 +38,24 @@ export function DesktopApp() {
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
   }, [theme]);
+
+  useEffect(() => {
+    if (!session) {
+      return;
+    }
+
+    // 只刷新 Bifrost 自己的会话，不触碰系统代理、DNS 或路由。
+    const refreshIfNeeded = () => {
+      const expiresAt = Date.parse(session.expiresAt);
+      if (Number.isFinite(expiresAt) && expiresAt - Date.now() < 120_000) {
+        void refreshActiveSession();
+      }
+    };
+
+    refreshIfNeeded();
+    const timer = window.setInterval(refreshIfNeeded, 60_000);
+    return () => window.clearInterval(timer);
+  }, [refreshActiveSession, session]);
 
   const diagnosticsQuery = useQuery({
     queryFn: () => window.bifrostDesktop.diagnostics.snapshot(),
@@ -58,7 +78,10 @@ export function DesktopApp() {
           {view === "account" ? <AccountCard /> : null}
           {view === "settings" ? <SettingsCard /> : null}
           {view === "diagnostics" ? (
-            <DiagnosticsCard diagnostics={diagnosticsQuery.data ?? null} />
+            <DiagnosticsCard
+              diagnostics={diagnosticsQuery.data ?? null}
+              localProxyStatus={localProxyStatus}
+            />
           ) : null}
         </>
       ) : (
