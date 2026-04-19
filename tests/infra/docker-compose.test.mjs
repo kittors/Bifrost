@@ -82,6 +82,24 @@ test("root scripts expose docker-driven e2e orchestration commands", () => {
   assert.equal(packageJson.scripts["test:e2e:down"], "node ./scripts/testing/e2e-down.mjs");
 });
 
+test("root scripts expose backend-only environment and validation commands", () => {
+  const packageJson = JSON.parse(
+    readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
+  );
+
+  assert.equal(packageJson.scripts["dev:backend"], "node ./scripts/testing/backend-up.mjs");
+  assert.equal(packageJson.scripts["dev:backend:down"], "node ./scripts/testing/e2e-down.mjs");
+  assert.equal(packageJson.scripts["test:backend"], "node ./scripts/testing/backend-run.mjs");
+  assert.ok(
+    existsSync(new URL("../../scripts/testing/backend-up.mjs", import.meta.url)),
+    "backend-up script is required",
+  );
+  assert.ok(
+    existsSync(new URL("../../scripts/testing/backend-run.mjs", import.meta.url)),
+    "backend-run script is required",
+  );
+});
+
 test("admin web image builds the real Vite application", () => {
   const dockerfile = readFileSync(
     new URL("../../docker/admin-web/Dockerfile", import.meta.url),

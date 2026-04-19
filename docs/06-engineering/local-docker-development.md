@@ -200,10 +200,36 @@ test:e2e
 当前已落地的 Docker 驱动 E2E 命令：
 
 ```bash
+pnpm dev:backend
+pnpm dev:backend:down
+pnpm test:backend
 pnpm test:e2e
 pnpm test:e2e:up
 pnpm test:e2e:down
 ```
+
+其中后端专用命令用于不依赖客户端 UI 的联调与回归：
+
+1. `pnpm dev:backend`
+2. 启动 PostgreSQL、多个 mock 上游和 Gateway。
+3. 自动执行 migration 与种子数据初始化。
+4. 保留环境，便于你直接调试 Gateway API、策略和代理链路。
+
+```text
+Gateway:   http://127.0.0.1:18080
+Postgres:  127.0.0.1:15432
+```
+
+`pnpm dev:backend:down` 用于回收上述后端环境。
+
+`pnpm test:backend` 用于一键执行后端闭环验证，会自动：
+
+1. 清理旧容器与卷。
+2. 启动后端专用 Docker 环境。
+3. 运行基础 infra 校验。
+4. 运行 Gateway Go 服务层测试。
+5. 运行 Playwright API / 代理链路 E2E。
+6. 自动回收环境。
 
 其中 `pnpm test:e2e` 会自动执行：
 
