@@ -130,6 +130,31 @@ Manual Security Checks
 
 - Playwright
 
+当前第一批 Playwright E2E 采用 API 级真实链路测试，默认连接 Docker Compose 暴露的测试端口：
+
+```bash
+pnpm test:backend
+pnpm test:e2e
+pnpm test:e2e:up
+pnpm test:e2e:down
+```
+
+说明：
+
+- `pnpm test:backend` 是后端专用一键入口，会先启动后端 Docker 环境，再执行 infra 检查、Gateway Go 测试和 Playwright API/E2E，适合接口层与服务层回归。
+- `pnpm test:e2e` 是推荐入口，会自动清理旧环境、启动测试容器、运行 Playwright 并在结束后回收环境。
+- `pnpm test:e2e:up` / `pnpm test:e2e:down` 主要用于本地聚焦调试。
+
+端口默认值：
+
+| 目标 | 默认 URL |
+|---|---|
+| Gateway | `http://127.0.0.1:18080` |
+| Admin Web | `http://127.0.0.1:15173` |
+| PostgreSQL | `127.0.0.1:15432` |
+
+Playwright 固定 `workers: 1`。原因是端到端场景会真实执行 Argon2 登录和设备 bootstrap，串行执行更接近用户行为，也避免轻量测试容器因并发密码校验造成不稳定。
+
 后台 E2E 场景：
 
 - 管理员登录

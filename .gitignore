@@ -3,6 +3,7 @@ node_modules/
 dist/
 build/
 coverage/
+test-results/
 .turbo/
 .pnpm-store/
 *.log
@@ -13,4 +14,5 @@ coverage/
 
 apps/gateway/bin/
 apps/gateway/tmp/
-
+apps/desktop/out/
+apps/desktop/release/

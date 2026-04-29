@@ -198,6 +198,7 @@
 - 先选择一个内部测试服务验证代理
 - 再接 GitLab
 - 单独验证大文件上传和 WebSocket
+- WebSocket 需同时覆盖 Gateway 代理和 Desktop 本地回环代理，避免只验证服务端路径
 
 风险：
 

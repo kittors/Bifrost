@@ -135,6 +135,10 @@ Mock 服务可以使用轻量 HTTP 服务实现，具体代码在实现阶段再
 | `bob` | `ops` | deny `jenkins` |
 | `admin` | `admin` | 无 |
 
+默认种子密码：
+
+- `admin` / `alice` / `bob` 初始密码统一为 `ChangeMe123!`
+
 ## 7. 联调场景
 
 ## 7.1 正常访问 GitLab
@@ -192,6 +196,71 @@ test:e2e
 - `test:e2e`：运行端到端测试
 
 具体命令在实现阶段写入 `package.json`、`turbo.json`、Makefile 或 Taskfile。
+
+当前已落地的 Docker 驱动 E2E 命令：
+
+```bash
+pnpm dev:backend
+pnpm dev:backend:down
+pnpm test:backend
+pnpm test:e2e
+pnpm test:e2e:up
+pnpm test:e2e:down
+```
+
+其中后端专用命令用于不依赖客户端 UI 的联调与回归：
+
+1. `pnpm dev:backend`
+2. 启动 PostgreSQL、多个 mock 上游和 Gateway。
+3. 自动执行 migration 与种子数据初始化。
+4. 保留环境，便于你直接调试 Gateway API、策略和代理链路。
+
+```text
+Gateway:   http://127.0.0.1:18080
+Postgres:  127.0.0.1:15432
+```
+
+`pnpm dev:backend:down` 用于回收上述后端环境。
+
+`pnpm test:backend` 用于一键执行后端闭环验证，会自动：
+
+1. 清理旧容器与卷。
+2. 启动后端专用 Docker 环境。
+3. 运行基础 infra 校验。
+4. 运行 Gateway Go 服务层测试。
+5. 运行 Playwright API / 代理链路 E2E。
+6. 自动回收环境。
+
+其中 `pnpm test:e2e` 会自动执行：
+
+1. 清理旧测试容器与数据库卷。
+2. 启动 PostgreSQL、mock 上游、Gateway 与 Admin Web。
+3. 执行 Playwright E2E。
+4. 回收测试容器与卷。
+
+适合 CI 与本地全量回归。`pnpm test:e2e:up` / `down` 仍保留给聚焦调试使用。
+
+默认测试端口与普通开发端口隔离：
+
+| 用途 | 默认端口 |
+|---|---:|
+| PostgreSQL | `15432` |
+| Gateway | `18080` |
+| Admin Web | `15173` |
+
+如需覆盖端口，可在执行命令前设置：
+
+```bash
+BIFROST_DEV_GATEWAY_PORT=28080 BIFROST_DEV_ADMIN_PORT=25173 BIFROST_DEV_POSTGRES_PORT=25432 pnpm test:e2e:up
+```
+
+E2E 启动脚本会执行：
+
+1. 启动 PostgreSQL 与多个 mock 上游容器。
+2. 等待 Docker healthcheck 成功。
+3. 执行数据库 migration 与种子数据初始化。
+4. 重新构建并启动 Gateway 与 Admin Web 容器。
+5. 等待 `readyz` 与 Admin health 通过。
 
 ## 9. 数据初始化
 

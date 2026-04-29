@@ -14,7 +14,8 @@
 | Node.js LTS | `24.15.0` |
 | pnpm | `10.33.0` |
 | Turborepo | `2.9.6` |
-| Biome | `2.4.12` |
+| Oxlint | `1.62.0` |
+| Oxfmt | `0.47.0` |
 | Changesets | `2.30.0` |
 | Lefthook | `2.1.6` |
 
@@ -23,7 +24,7 @@
 | 名称 | 版本 |
 |---|---:|
 | Electron | `41.2.1` |
-| electron-vite | `5.0.0` |
+| electron-vite | `6.0.0-beta.1` |
 | electron-builder | `26.8.1` |
 | React | `19.2.5` |
 | react-dom | `19.2.5` |

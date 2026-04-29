@@ -1,4 +1,0 @@
-{
-  "extends": "@bifrost/config-typescript/react.json",
-  "include": ["src"]
-}

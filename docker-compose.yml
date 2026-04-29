@@ -1,0 +1,144 @@
+name: bifrost-dev
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: bifrost
+      POSTGRES_PASSWORD: bifrost
+      POSTGRES_USER: bifrost
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bifrost -d bifrost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    networks:
+      - bifrost-dev
+    ports:
+      - "${BIFROST_DEV_POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - bifrost-postgres-data:/var/lib/postgresql/data
+
+  gateway:
+    build:
+      context: .
+      dockerfile: apps/gateway/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mock-gitlab:
+        condition: service_healthy
+      mock-jenkins:
+        condition: service_healthy
+      mock-docs:
+        condition: service_healthy
+      mock-internal-admin:
+        condition: service_healthy
+    environment:
+      PORT: 8080
+      BIFROST_DATABASE_URL: postgres://bifrost:bifrost@postgres:5432/bifrost?sslmode=disable
+      BIFROST_UPSTREAM_GITLAB: http://mock-gitlab:8080
+      BIFROST_UPSTREAM_JENKINS: http://mock-jenkins:8080
+      BIFROST_UPSTREAM_DOCS: http://mock-docs:8080
+      BIFROST_UPSTREAM_INTERNAL_ADMIN: http://mock-internal-admin:8080
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    networks:
+      - bifrost-dev
+    ports:
+      - "${BIFROST_DEV_GATEWAY_PORT:-8080}:8080"
+
+  admin-web:
+    build:
+      context: .
+      dockerfile: docker/admin-web/Dockerfile
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5173/health >/dev/null 2>&1 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    networks:
+      - bifrost-dev
+    ports:
+      - "${BIFROST_DEV_ADMIN_PORT:-5173}:5173"
+
+  mock-gitlab:
+    build:
+      context: .
+      dockerfile: docker/mock-service/Dockerfile
+    environment:
+      PORT: 8080
+      SERVICE_KEY: gitlab
+      SERVICE_NAME: Mock GitLab
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health >/dev/null 2>&1 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    networks:
+      - bifrost-dev
+
+  mock-jenkins:
+    build:
+      context: .
+      dockerfile: docker/mock-service/Dockerfile
+    environment:
+      PORT: 8080
+      SERVICE_KEY: jenkins
+      SERVICE_NAME: Mock Jenkins
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health >/dev/null 2>&1 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    networks:
+      - bifrost-dev
+
+  mock-docs:
+    build:
+      context: .
+      dockerfile: docker/mock-service/Dockerfile
+    environment:
+      PORT: 8080
+      SERVICE_KEY: docs
+      SERVICE_NAME: Mock Docs
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health >/dev/null 2>&1 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    networks:
+      - bifrost-dev
+
+  mock-internal-admin:
+    build:
+      context: .
+      dockerfile: docker/mock-service/Dockerfile
+    environment:
+      PORT: 8080
+      SERVICE_KEY: internal-admin
+      SERVICE_NAME: Mock Internal Admin
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health >/dev/null 2>&1 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    networks:
+      - bifrost-dev
+
+networks:
+  bifrost-dev:
+    name: bifrost-dev
+
+volumes:
+  bifrost-postgres-data:

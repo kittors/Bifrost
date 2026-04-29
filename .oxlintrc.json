@@ -1,0 +1,23 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "oxc"],
+  "categories": {
+    "correctness": "error"
+  },
+  "rules": {
+    "unicorn/no-useless-spread": "off"
+  },
+  "ignorePatterns": [
+    "node_modules/**",
+    "dist/**",
+    "build/**",
+    ".turbo/**",
+    "coverage/**",
+    "test-results/**",
+    "apps/desktop/out/**",
+    "apps/desktop/release/**"
+  ],
+  "env": {
+    "builtin": true
+  }
+}

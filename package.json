@@ -2,18 +2,48 @@
   "name": "bifrost",
   "version": "0.0.0",
   "private": true,
-  "packageManager": "pnpm@10.33.0",
   "scripts": {
+    "preinstall": "node ./scripts/package-manager/ensure-pnpm.mjs",
     "dev": "turbo dev",
+    "dev:backend": "node ./scripts/testing/backend-up.mjs",
+    "dev:backend:down": "node ./scripts/testing/e2e-down.mjs",
+    "dev:infra": "docker compose up -d postgres gateway admin-web mock-gitlab mock-jenkins mock-docs mock-internal-admin",
+    "dev:infra:down": "docker compose down -v --remove-orphans",
+    "db:migrate": "cd apps/gateway && go run ./cmd/bifrost-migrate up",
+    "db:seed": "cd apps/gateway && go run ./cmd/bifrost-migrate seed",
+    "db:reset": "cd apps/gateway && go run ./cmd/bifrost-migrate down",
     "build": "turbo build",
+    "build:gateway:image": "docker build -f apps/gateway/Dockerfile -t bifrost/gateway:dev .",
+    "build:admin:image": "docker build -f docker/admin-web/Dockerfile -t bifrost/admin-web:dev .",
     "test": "turbo test",
+    "test:backend": "node ./scripts/testing/backend-run.mjs",
+    "test:e2e": "node ./scripts/testing/e2e-run.mjs",
+    "test:e2e:down": "node ./scripts/testing/e2e-down.mjs",
+    "test:e2e:seed": "node ./scripts/testing/e2e-seed.mjs",
+    "test:e2e:up": "node ./scripts/testing/e2e-up.mjs",
+    "test:infra": "node --test tests/infra/*.test.mjs",
+    "test:infra:smoke": "node ./scripts/infra/smoke.mjs",
     "check": "turbo check",
-    "format": "biome format --write .",
-    "lint": "biome check ."
+    "format": "oxfmt apps packages tests scripts package.json pnpm-workspace.yaml turbo.json lefthook.yml .oxlintrc.json .oxfmtrc.json",
+    "format:check": "oxfmt apps packages tests scripts package.json pnpm-workspace.yaml turbo.json lefthook.yml .oxlintrc.json .oxfmtrc.json --check",
+    "lint": "oxlint . --deny-warnings",
+    "lint:fix": "oxlint . --fix"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.12",
+    "@playwright/test": "1.59.1",
+    "oxfmt": "0.47.0",
+    "oxlint": "1.62.0",
+    "tailwindcss": "4.2.2",
     "turbo": "2.9.6",
-    "typescript": "6.0.3"
+    "typescript": "6.0.3",
+    "vitest": "4.1.4"
+  },
+  "packageManager": "pnpm@10.33.0",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "electron",
+      "electron-winstaller",
+      "esbuild"
+    ]
   }
 }

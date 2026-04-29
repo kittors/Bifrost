@@ -10,7 +10,13 @@
   },
   "scripts": {
     "build": "echo \"design tokens are CSS assets\"",
-    "check": "echo \"design tokens check pending\"",
-    "test": "echo \"design tokens tests pending\""
+    "check": "vitest run src/*.test.ts",
+    "test": "vitest run src/*.test.ts"
+  },
+  "dependencies": {
+    "@heroui/react": "3.0.3"
+  },
+  "devDependencies": {
+    "vitest": "4.1.4"
   }
 }

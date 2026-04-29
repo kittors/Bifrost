@@ -29,7 +29,7 @@ Bifrost 项目开发遵循以下原则：
 ## 3. Monorepo 协作原则
 
 - 客户端与后台必须共享同一套设计 token
-- 客户端与后台必须共享同一套基础组件体系
+- 客户端与后台必须统一使用固定版本的 HeroUI 基础组件体系
 - 契约、错误码、分页结构必须统一放入共享包
 - 不允许应用各自复制同一份工具函数或常量定义
 
@@ -37,21 +37,22 @@ Bifrost 项目开发遵循以下原则：
 
 ### 4.1 技术边界
 
-- 统一使用 `React + TypeScript + Tailwind CSS v4 + shadcn/ui`
+- 统一使用 `React + TypeScript + Tailwind CSS v4 + HeroUI`
 - 统一使用 `pnpm workspace + Turborepo`
-- 统一使用 `Biome`
+- 统一使用 `pnpm` 安装依赖，禁止使用 `npm install`、`yarn install` 或 `bun install`
+- 统一使用 `Oxlint + Oxfmt` 做前端/TypeScript 语法检查与格式化
 
 ### 4.2 样式规范
 
 - 默认使用 Tailwind utilities
 - 尽量不用原生 CSS
 - 不使用 SCSS、Less、CSS Modules、styled-components
-- 页面中重复样式应抽象为共享组件或受控变体
+- 页面中重复样式应优先抽象为 HeroUI 组件组合、受控变体或设计 token
 
 ### 4.3 组件规范
 
-- 基础交互组件沉淀到 `packages/ui`
-- 业务页面不直接堆积长 class 串复制粘贴
+- 基础交互组件使用固定版本 `@heroui/react@3.0.3`
+- 业务页面不直接堆积长 class 串复制粘贴；必要时只在 app 内保留很薄的 HeroUI 适配层
 - 所有基础组件必须支持 Light / Dark
 - 所有组件必须遵守统一的尺寸、字号、圆角、边框规范
 

@@ -7,12 +7,15 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "build": "tsc --noEmit",
-    "check": "tsc --noEmit",
-    "test": "echo \"@bifrost/contracts tests pending\""
+    "build": "node ./scripts/generate-contracts.mjs --check && tsc --noEmit",
+    "check": "node ./scripts/generate-contracts.mjs --check && tsc --noEmit",
+    "generate": "node ./scripts/generate-contracts.mjs",
+    "test": "vitest run src/*.test.ts"
   },
   "devDependencies": {
     "@bifrost/config-typescript": "workspace:*",
-    "typescript": "6.0.3"
+    "typescript": "6.0.3",
+    "vitest": "4.1.4",
+    "yaml": "2.8.1"
   }
 }

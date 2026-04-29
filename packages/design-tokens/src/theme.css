@@ -1,10 +1,72 @@
 @import "tailwindcss";
+@import "@heroui/react/styles";
 
 @theme {
   --font-sans: "Geist", "Noto Sans SC", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
 
+  --color-bg: var(--bifrost-bg);
+  --color-surface: var(--bifrost-surface);
+  --color-surface-2: var(--bifrost-surface-2);
+  --color-text-primary: var(--bifrost-text-primary);
+  --color-text-secondary: var(--bifrost-text-secondary);
+  --color-text-muted: var(--bifrost-text-muted);
+  --color-border: var(--bifrost-border);
+  --color-border-soft: var(--bifrost-border-soft);
+  --color-brand: var(--bifrost-brand);
+  --color-brand-hover: var(--bifrost-brand-hover);
+  --color-brand-soft: var(--bifrost-brand-soft);
+  --color-success: var(--bifrost-success);
+  --color-warning: var(--bifrost-warning);
+  --color-danger: var(--bifrost-danger);
+  --color-info: var(--bifrost-info);
+
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 14px;
+
+  --text-1-size: 12px;
+  --text-1-line-height: 18px;
+  --text-2-size: 13px;
+  --text-2-line-height: 20px;
+  --text-3-size: 14px;
+  --text-3-line-height: 22px;
+  --text-4-size: 16px;
+  --text-4-line-height: 24px;
+
+  --bifrost-border-thin: 1px;
+  --bifrost-ring-focus: 2px;
+
+  --bifrost-space-1: 4px;
+  --bifrost-space-2: 8px;
+  --bifrost-space-3: 12px;
+  --bifrost-space-4: 16px;
+  --bifrost-space-5: 20px;
+  --bifrost-space-6: 24px;
+  --bifrost-space-8: 32px;
+
+  --bifrost-btn-xs-height: 28px;
+  --bifrost-btn-sm-height: 32px;
+  --bifrost-btn-md-height: 36px;
+  --bifrost-btn-lg-height: 40px;
+
+  --bifrost-input-sm-height: 32px;
+  --bifrost-input-md-height: 36px;
+  --bifrost-input-lg-height: 40px;
+
+  --bifrost-table-row-compact: 32px;
+  --bifrost-table-row-default: 36px;
+  --bifrost-table-header-height: 36px;
+
+  --bifrost-desktop-window-width: 640px;
+  --bifrost-desktop-window-height: 760px;
+  --bifrost-desktop-window-min-width: 520px;
+  --bifrost-desktop-window-min-height: 680px;
+  --bifrost-desktop-card-padding: 16px;
+  --bifrost-desktop-section-gap: 12px;
+
+  --bifrost-admin-sidebar-width: 232px;
+  --bifrost-admin-topbar-height: 52px;
+  --bifrost-admin-page-padding-x: 24px;
+  --bifrost-admin-page-padding-y: 20px;
 }

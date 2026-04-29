@@ -2,5 +2,804 @@ openapi: 3.1.0
 info:
   title: Bifrost API
   version: 0.1.0
-paths: {}
-
+paths:
+  /healthz:
+    get:
+      tags: [System]
+      operationId: getHealthz
+      summary: Process liveness check.
+      responses:
+        "200":
+          description: Gateway process is alive.
+  /readyz:
+    get:
+      tags: [System]
+      operationId: getReadyz
+      summary: Gateway dependency readiness check.
+      responses:
+        "200":
+          description: Gateway is ready.
+        "503":
+          description: Gateway dependencies are not ready.
+  /api/v1/admin/auth/login:
+    post:
+      tags: [AdminAuth]
+      operationId: adminLogin
+      summary: Sign in to the admin console.
+      requestBody:
+        $ref: "#/components/requestBodies/PasswordLogin"
+      responses:
+        "200":
+          $ref: "#/components/responses/ApiSuccess"
+        "401":
+          $ref: "#/components/responses/ApiFailure"
+  /api/v1/admin/auth/refresh:
+    post:
+      tags: [AdminAuth]
+      operationId: adminRefresh
+      summary: Rotate an admin refresh token.
+      requestBody:
+        $ref: "#/components/requestBodies/RefreshSession"
+      responses:
+        "200":
+          $ref: "#/components/responses/ApiSuccess"
+        "401":
+          $ref: "#/components/responses/ApiFailure"
+  /api/v1/admin/auth/logout:
+    post:
+      tags: [AdminAuth]
+      operationId: adminLogout
+      summary: Revoke the active admin session.
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          $ref: "#/components/responses/ApiSuccess"
+        "401":
+          $ref: "#/components/responses/ApiFailure"
+  /api/v1/admin/auth/me:
+    get:
+      tags: [AdminAuth]
+      operationId: getAdminCurrentUser
+      summary: Return the active admin principal.
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          $ref: "#/components/responses/ApiSuccess"
+        "401":
+          $ref: "#/components/responses/ApiFailure"
+  /api/v1/admin/users:
+    get:
+      tags: [AdminUsers]
+      operationId: listAdminUsers
+      summary: List users with pagination and filters.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - $ref: "#/components/parameters/Keyword"
+        - $ref: "#/components/parameters/Status"
+        - name: roleId
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          $ref: "#/components/responses/ApiSuccess"
+        "401":
+          $ref: "#/components/responses/ApiFailure"
+    post:
+      tags: [AdminUsers]
+      operationId: createAdminUser
+      summary: Create a user and assign roles.
+      security:
+        - BearerAuth: []
+      responses:
+        "201":
+          $ref: "#/components/responses/ApiSuccess"
+        "400":
+          $ref: "#/components/responses/ApiFailure"
+        "409":
+          $ref: "#/components/responses/ApiFailure"
+  /api/v1/admin/users/{userId}:
+    get:
+      tags: [AdminUsers]
+      operationId: getAdminUser
+      summary: Return one user.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200":
+          $ref: "#/components/responses/ApiSuccess"
+        "404":
+          $ref: "#/components/responses/ApiFailure"
+    patch:
+      tags: [AdminUsers]
+      operationId: updateAdminUser
+      summary: Update user profile fields and roles.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200":
+          $ref: "#/components/responses/ApiSuccess"
+        "404":
+          $ref: "#/components/responses/ApiFailure"
+  /api/v1/admin/users/{userId}/service-overrides:
+    get:
+      tags: [AdminPolicy]
+      operationId: listUserServiceOverrides
+      summary: List user-level service allow/deny overrides.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200":
+          $ref: "#/components/responses/ApiSuccess"
+    put:
+      tags: [AdminPolicy]
+      operationId: replaceUserServiceOverrides
+      summary: Replace user-level service allow/deny overrides.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200":
+          $ref: "#/components/responses/ApiSuccess"
+        "400":
+          $ref: "#/components/responses/ApiFailure"
+  /api/v1/admin/users/{userId}/reset-password:
+    post:
+      tags: [AdminUsers]
+      operationId: resetAdminUserPassword
+      summary: Set a new password for a user.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200":
+          $ref: "#/components/responses/ApiSuccess"
+  /api/v1/admin/users/{userId}/status:
+    post:
+      tags: [AdminUsers]
+      operationId: setAdminUserStatus
+      summary: Enable or disable a user.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200":
+          $ref: "#/components/responses/ApiSuccess"
+        "422":
+          $ref: "#/components/responses/ApiFailure"
+  /api/v1/admin/roles:
+    get:
+      tags: [AdminRoles]
+      operationId: listAdminRoles
+      summary: List roles.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - $ref: "#/components/parameters/Keyword"
+      responses:
+        "200":
+          $ref: "#/components/responses/ApiSuccess"
+    post:
+      tags: [AdminRoles]
+      operationId: createAdminRole
+      summary: Create a role.
+      security:
+        - BearerAuth: []
+      responses:
+        "201":
+          $ref: "#/components/responses/ApiSuccess"
+  /api/v1/admin/roles/{roleId}:
+    patch:
+      tags: [AdminRoles]
+      operationId: updateAdminRole
+      summary: Update role display fields.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/RoleId"
+      responses:
+        "200":
+          $ref: "#/components/responses/ApiSuccess"
+  /api/v1/admin/roles/{roleId}/services:
+    put:
+      tags: [AdminPolicy]
+      operationId: replaceRoleServices
+      summary: Replace services granted to a role.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/RoleId"
+      responses:
+        "200":
+          $ref: "#/components/responses/ApiSuccess"
+  /api/v1/admin/services:
+    get:
+      tags: [AdminServices]
+      operationId: listAdminServices
+      summary: List service catalog entries.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - $ref: "#/components/parameters/Keyword"
+        - $ref: "#/components/parameters/Status"
+        - name: group
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          $ref: "#/components/responses/ApiSuccess"
+    post:
+      tags: [AdminServices]
+      operationId: createAdminService
+      summary: Create a service catalog entry.
+      security:
+        - BearerAuth: []
+      responses:
+        "201":
+          $ref: "#/components/responses/ApiSuccess"
+  /api/v1/admin/services/{serviceId}:
+    get:
+      tags: [AdminServices]
+      operationId: getAdminService
+      summary: Return one service catalog entry.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ServiceId"
+      responses:
+        "200":
+          $ref: "#/components/responses/ApiSuccess"
+    patch:
+      tags: [AdminServices]
+      operationId: updateAdminService
+      summary: Update service catalog fields.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ServiceId"
+      responses:
+        "200":
+          $ref: "#/components/responses/ApiSuccess"
+  /api/v1/admin/services/{serviceId}/status:
+    post:
+      tags: [AdminServices]
+      operationId: setAdminServiceStatus
+      summary: Enable or disable a service.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ServiceId"
+      responses:
+        "200":
+          $ref: "#/components/responses/ApiSuccess"
+  /api/v1/admin/devices:
+    get:
+      tags: [AdminDevices]
+      operationId: listAdminDevices
+      summary: List devices.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - $ref: "#/components/parameters/Keyword"
+        - $ref: "#/components/parameters/Status"
+        - name: userId
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          $ref: "#/components/responses/ApiSuccess"
+  /api/v1/admin/devices/{deviceId}:
+    get:
+      tags: [AdminDevices]
+      operationId: getAdminDevice
+      summary: Return one device.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/DeviceId"
+      responses:
+        "200":
+          $ref: "#/components/responses/ApiSuccess"
+  /api/v1/admin/devices/{deviceId}/status:
+    post:
+      tags: [AdminDevices]
+      operationId: setAdminDeviceStatus
+      summary: Trust or disable a device.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/DeviceId"
+      responses:
+        "200":
+          $ref: "#/components/responses/ApiSuccess"
+  /api/v1/admin/audit-events:
+    get:
+      tags: [AdminAudit]
+      operationId: listAdminAuditEvents
+      summary: List audit events.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - name: type
+          in: query
+          schema:
+            $ref: "#/components/schemas/AuditEventType"
+        - name: actorUserId
+          in: query
+          schema:
+            type: string
+        - name: targetType
+          in: query
+          schema:
+            type: string
+        - name: targetId
+          in: query
+          schema:
+            type: string
+        - name: serviceId
+          in: query
+          schema:
+            type: string
+        - name: result
+          in: query
+          schema:
+            type: string
+            enum: [success, failure]
+      responses:
+        "200":
+          $ref: "#/components/responses/ApiSuccess"
+  /api/v1/client/devices/bootstrap:
+    post:
+      tags: [ClientDevices]
+      operationId: bootstrapClientDevice
+      summary: Bind a first device and create a device-bound session.
+      responses:
+        "200":
+          $ref: "#/components/responses/ApiSuccess"
+        "409":
+          $ref: "#/components/responses/ApiFailure"
+  /api/v1/client/auth/login:
+    post:
+      tags: [ClientAuth]
+      operationId: clientLogin
+      summary: Sign in from a trusted device.
+      requestBody:
+        $ref: "#/components/requestBodies/ClientLogin"
+      responses:
+        "200":
+          $ref: "#/components/responses/ApiSuccess"
+        "403":
+          $ref: "#/components/responses/ApiFailure"
+  /api/v1/client/auth/refresh:
+    post:
+      tags: [ClientAuth]
+      operationId: clientRefresh
+      summary: Rotate a client refresh token.
+      requestBody:
+        $ref: "#/components/requestBodies/RefreshSession"
+      responses:
+        "200":
+          $ref: "#/components/responses/ApiSuccess"
+  /api/v1/client/auth/logout:
+    post:
+      tags: [ClientAuth]
+      operationId: clientLogout
+      summary: Revoke the active client session.
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          $ref: "#/components/responses/ApiSuccess"
+  /api/v1/client/me:
+    get:
+      tags: [ClientAuth]
+      operationId: getClientCurrentUser
+      summary: Return the active client principal.
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          $ref: "#/components/responses/ApiSuccess"
+  /api/v1/client/devices/register:
+    post:
+      tags: [ClientDevices]
+      operationId: registerClientDevice
+      summary: Register a trusted device for the current user.
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          $ref: "#/components/responses/ApiSuccess"
+  /api/v1/client/devices/challenge:
+    post:
+      tags: [ClientDevices]
+      operationId: createDeviceChallenge
+      summary: Create an Ed25519 device challenge.
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          $ref: "#/components/responses/ApiSuccess"
+  /api/v1/client/devices/challenge/verify:
+    post:
+      tags: [ClientDevices]
+      operationId: verifyDeviceChallenge
+      summary: Verify an Ed25519 device challenge signature.
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          $ref: "#/components/responses/ApiSuccess"
+  /api/v1/client/services:
+    get:
+      tags: [ClientServices]
+      operationId: listClientServices
+      summary: List services available to the active user and device.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Keyword"
+        - name: group
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          $ref: "#/components/responses/ApiSuccess"
+  /api/v1/client/services/{serviceId}:
+    get:
+      tags: [ClientServices]
+      operationId: getClientService
+      summary: Return a client-visible service.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ServiceId"
+      responses:
+        "200":
+          $ref: "#/components/responses/ApiSuccess"
+  /api/v1/client/services/{serviceId}/access-url:
+    post:
+      tags: [ClientServices]
+      operationId: createServiceAccessUrl
+      summary: Create a short-lived service access URL and cookie.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ServiceId"
+      responses:
+        "200":
+          $ref: "#/components/responses/ApiSuccess"
+        "403":
+          $ref: "#/components/responses/ApiFailure"
+  /s/{serviceKey}/{proxyPath}:
+    get:
+      tags: [GatewayProxy]
+      operationId: proxyServiceGet
+      summary: Proxy an authorized request to a configured upstream service.
+      security:
+        - BearerAuth: []
+        - ServiceAccessCookie: []
+      parameters:
+        - name: serviceKey
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: proxyPath
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Upstream response is streamed back to the caller.
+        "401":
+          $ref: "#/components/responses/ApiFailure"
+        "403":
+          $ref: "#/components/responses/ApiFailure"
+        "502":
+          $ref: "#/components/responses/ApiFailure"
+        "504":
+          $ref: "#/components/responses/ApiFailure"
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: BifrostAccessToken
+    ServiceAccessCookie:
+      type: apiKey
+      in: cookie
+      name: bifrost_access_ticket
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSize:
+      name: pageSize
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 20
+    Keyword:
+      name: keyword
+      in: query
+      schema:
+        type: string
+    Status:
+      name: status
+      in: query
+      schema:
+        type: string
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+    RoleId:
+      name: roleId
+      in: path
+      required: true
+      schema:
+        type: string
+    ServiceId:
+      name: serviceId
+      in: path
+      required: true
+      schema:
+        type: string
+    DeviceId:
+      name: deviceId
+      in: path
+      required: true
+      schema:
+        type: string
+  requestBodies:
+    PasswordLogin:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [username, password]
+            properties:
+              username:
+                type: string
+              password:
+                type: string
+    ClientLogin:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [username, password, deviceId]
+            properties:
+              username:
+                type: string
+              password:
+                type: string
+              deviceId:
+                type: string
+              clientVersion:
+                type: string
+    RefreshSession:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [refreshToken]
+            properties:
+              refreshToken:
+                type: string
+              deviceId:
+                type: string
+  responses:
+    ApiSuccess:
+      description: Unified Bifrost success envelope.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiSuccessEnvelope"
+    ApiFailure:
+      description: Unified Bifrost failure envelope.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiFailureEnvelope"
+  schemas:
+    ErrorCode:
+      type: string
+      enum:
+        - COMMON_BAD_REQUEST
+        - COMMON_VALIDATION_FAILED
+        - COMMON_NOT_FOUND
+        - COMMON_CONFLICT
+        - COMMON_RATE_LIMITED
+        - COMMON_INTERNAL_ERROR
+        - AUTH_INVALID_CREDENTIALS
+        - AUTH_INVALID_TOKEN
+        - AUTH_REFRESH_TOKEN_INVALID
+        - AUTH_SESSION_EXPIRED
+        - AUTH_SESSION_REVOKED
+        - AUTH_PASSWORD_REQUIRED
+        - AUTH_PASSWORD_TOO_WEAK
+        - USER_DISABLED
+        - USER_NOT_FOUND
+        - USER_ALREADY_EXISTS
+        - USER_CANNOT_DISABLE_SELF
+        - USER_CANNOT_DELETE_SELF
+        - USER_LAST_ADMIN_REQUIRED
+        - ROLE_NOT_FOUND
+        - ROLE_ALREADY_EXISTS
+        - ROLE_IN_USE
+        - ROLE_SYSTEM_ROLE_LOCKED
+        - ROLE_POLICY_INVALID
+        - DEVICE_NOT_FOUND
+        - DEVICE_NOT_TRUSTED
+        - DEVICE_DISABLED
+        - DEVICE_KEY_INVALID
+        - DEVICE_CHALLENGE_EXPIRED
+        - DEVICE_ALREADY_BOUND
+        - DEVICE_LIMIT_EXCEEDED
+        - SERVICE_NOT_FOUND
+        - SERVICE_DISABLED
+        - SERVICE_ALREADY_EXISTS
+        - SERVICE_UPSTREAM_INVALID
+        - SERVICE_UPSTREAM_UNREACHABLE
+        - SERVICE_ROUTE_INVALID
+        - POLICY_ACCESS_DENIED
+        - POLICY_USER_DENIED
+        - POLICY_ROLE_DENIED
+        - POLICY_DEVICE_DENIED
+        - POLICY_RULE_INVALID
+        - AUDIT_EVENT_NOT_FOUND
+        - AUDIT_QUERY_INVALID
+        - AUDIT_EXPORT_TOO_LARGE
+        - GATEWAY_BAD_UPSTREAM
+        - GATEWAY_UPSTREAM_TIMEOUT
+        - GATEWAY_ROUTE_NOT_FOUND
+        - GATEWAY_REQUEST_TOO_LARGE
+    AuditEventType:
+      type: string
+      enum:
+        - auth.login.succeeded
+        - auth.login.failed
+        - auth.logout.succeeded
+        - auth.refresh.succeeded
+        - device.registered
+        - device.challenge.requested
+        - device.challenge.verified
+        - device.disabled
+        - service.access.granted
+        - service.access.denied
+        - service.access.upstream_error
+        - admin.user.created
+        - admin.user.updated
+        - admin.role.updated
+        - admin.service.updated
+    Pagination:
+      type: object
+      additionalProperties: false
+      required:
+        - page
+        - pageSize
+        - total
+        - totalPages
+      properties:
+        page:
+          type: integer
+          minimum: 1
+        pageSize:
+          type: integer
+          minimum: 1
+        total:
+          type: integer
+          minimum: 0
+        totalPages:
+          type: integer
+          minimum: 0
+    ApiMeta:
+      type: object
+      additionalProperties: false
+      required:
+        - requestId
+        - timestamp
+      properties:
+        requestId:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+    ApiError:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - message
+        - userMessage
+        - details
+      properties:
+        code:
+          $ref: "#/components/schemas/ErrorCode"
+        message:
+          type: string
+        userMessage:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+    ApiSuccessEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+        - success
+        - data
+        - meta
+        - error
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: object
+          additionalProperties: true
+        meta:
+          $ref: "#/components/schemas/ApiMeta"
+        error:
+          type: "null"
+    ApiFailureEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+        - success
+        - data
+        - meta
+        - error
+      properties:
+        success:
+          type: boolean
+          const: false
+        data:
+          type: "null"
+        meta:
+          $ref: "#/components/schemas/ApiMeta"
+        error:
+          $ref: "#/components/schemas/ApiError"

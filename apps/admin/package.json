@@ -4,18 +4,39 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc --noEmit",
+    "build": "vite build",
     "check": "tsc --noEmit",
-    "dev": "echo \"admin dev server pending\"",
-    "test": "echo \"admin tests pending\""
+    "dev": "vite",
+    "test": "vitest run"
   },
   "dependencies": {
     "@bifrost/contracts": "workspace:*",
     "@bifrost/design-tokens": "workspace:*",
-    "@bifrost/ui": "workspace:*"
+    "@heroui/react": "3.0.3",
+    "@hookform/resolvers": "5.2.2",
+    "@tanstack/react-query": "5.99.0",
+    "@tanstack/react-router": "1.168.22",
+    "lucide-react": "1.8.0",
+    "react": "19.2.5",
+    "react-dom": "19.2.5",
+    "react-hook-form": "7.72.1",
+    "sonner": "2.0.7",
+    "zod": "4.3.6",
+    "zustand": "5.0.12"
   },
   "devDependencies": {
     "@bifrost/config-typescript": "workspace:*",
-    "typescript": "6.0.3"
+    "@bifrost/config-vitest": "workspace:*",
+    "@tailwindcss/vite": "4.2.2",
+    "@testing-library/react": "16.3.2",
+    "@testing-library/user-event": "14.6.1",
+    "@types/node": "25.6.0",
+    "@types/react": "19.2.6",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.1",
+    "happy-dom": "20.9.0",
+    "typescript": "6.0.3",
+    "vite": "8.0.8",
+    "vitest": "4.1.4"
   }
 }

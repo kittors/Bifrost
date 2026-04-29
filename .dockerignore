@@ -1,0 +1,13 @@
+.git
+.github
+.turbo
+node_modules
+test-results
+apps/*/node_modules
+apps/*/.turbo
+apps/desktop/out
+apps/desktop/release
+packages/*/node_modules
+packages/*/.turbo
+dist
+release

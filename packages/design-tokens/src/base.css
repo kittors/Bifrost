@@ -1,9 +1,76 @@
 @layer base {
   :root {
     color-scheme: light;
+    --bifrost-bg: oklch(0.985 0.002 247);
+    --bifrost-surface: oklch(0.998 0.001 247);
+    --bifrost-surface-2: oklch(0.972 0.004 247);
+    --bifrost-text-primary: oklch(0.22 0.01 255);
+    --bifrost-text-secondary: oklch(0.47 0.01 255);
+    --bifrost-text-muted: oklch(0.62 0.008 255);
+    --bifrost-border: oklch(0.9 0.006 255);
+    --bifrost-border-soft: oklch(0.94 0.004 255);
+    --bifrost-brand: oklch(0.6 0.11 244);
+    --bifrost-brand-hover: oklch(0.55 0.12 244);
+    --bifrost-brand-soft: oklch(0.95 0.02 244);
+    --bifrost-success: oklch(0.63 0.13 152);
+    --bifrost-warning: oklch(0.73 0.15 78);
+    --bifrost-danger: oklch(0.6 0.18 25);
+    --bifrost-info: oklch(0.62 0.11 230);
   }
 
   [data-theme="dark"] {
     color-scheme: dark;
+    --bifrost-bg: oklch(0.18 0.008 255);
+    --bifrost-surface: oklch(0.22 0.01 255);
+    --bifrost-surface-2: oklch(0.26 0.012 255);
+    --bifrost-text-primary: oklch(0.94 0.003 255);
+    --bifrost-text-secondary: oklch(0.75 0.006 255);
+    --bifrost-text-muted: oklch(0.6 0.008 255);
+    --bifrost-border: oklch(0.33 0.01 255);
+    --bifrost-border-soft: oklch(0.28 0.01 255);
+    --bifrost-brand: oklch(0.72 0.1 244);
+    --bifrost-brand-hover: oklch(0.77 0.11 244);
+    --bifrost-brand-soft: oklch(0.3 0.04 244);
+    --bifrost-success: oklch(0.74 0.12 152);
+    --bifrost-warning: oklch(0.8 0.13 78);
+    --bifrost-danger: oklch(0.72 0.17 25);
+    --bifrost-info: oklch(0.75 0.1 230);
+  }
+
+  * {
+    border-color: var(--bifrost-border);
+  }
+
+  html {
+    font-family: var(--font-sans);
+    background-color: var(--bifrost-bg);
+    color: var(--bifrost-text-primary);
+  }
+
+  body {
+    min-height: 100vh;
+    background-color: var(--bifrost-bg);
+    color: var(--bifrost-text-primary);
+    font-size: var(--text-2-size);
+    line-height: var(--text-2-line-height);
+    text-rendering: optimizeLegibility;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  ::selection {
+    background-color: color-mix(in oklab, var(--bifrost-brand) 18%, white);
+    color: var(--bifrost-text-primary);
+  }
+
+  :focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 var(--bifrost-ring-focus)
+      color-mix(in oklab, var(--bifrost-brand) 38%, transparent);
   }
 }

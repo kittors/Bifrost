@@ -14,6 +14,12 @@
 
 ## 2. 客户端认证 API
 
+第一阶段实现说明：
+
+- 首台设备可通过 `POST /api/v1/client/devices/bootstrap` 完成账号校验、设备公钥绑定与会话签发
+- 已绑定设备的日常登录继续使用 `POST /api/v1/client/auth/login`
+- 设备注册、挑战申请、挑战验签仍要求客户端已携带有效 `Bearer access token`
+
 ## 2.1 登录
 
 ```text
@@ -38,11 +44,68 @@ POST /api/v1/client/auth/login
 - 当前用户
 - 是否需要设备挑战
 
-## 2.2 获取设备挑战
+## 2.2 首台设备 bootstrap
+
+```text
+POST /api/v1/client/devices/bootstrap
+```
+
+用途：
+
+- 用户首次安装客户端、本机还没有 `deviceId` 时使用
+- 服务端先校验账号密码，再绑定客户端生成的 Ed25519 公钥
+- 绑定成功后直接签发与该设备关联的会话
+
+请求体：
+
+```json
+{
+  "username": "alice",
+  "password": "********",
+  "deviceName": "Alice MacBook Pro",
+  "deviceOs": "macOS",
+  "clientVersion": "0.1.0",
+  "publicKey": "base64url-ed25519-public-key",
+  "publicKeyFingerprint": "fp_xxxxxxxx"
+}
+```
+
+返回：
+
+```json
+{
+  "accessToken": "access_token",
+  "refreshToken": "refresh_token",
+  "expiresIn": 900,
+  "user": {
+    "id": "user_alice",
+    "username": "alice",
+    "displayName": "Alice",
+    "roles": ["role_developer"]
+  },
+  "device": {
+    "deviceId": "device_01",
+    "status": "trusted"
+  }
+}
+```
+
+安全约束：
+
+- 该接口只用于账号密码正确后的新设备绑定
+- 服务端保存公钥与指纹，不接收也不保存私钥
+- 若公钥指纹已绑定，返回 `DEVICE_ALREADY_BOUND`
+- 客户端必须把私钥保存在系统安全存储中
+
+## 2.3 获取设备挑战
 
 ```text
 POST /api/v1/client/devices/challenge
 ```
+
+请求头：
+
+- `Authorization: Bearer <access_token>`
 
 请求体：
 
@@ -62,11 +125,15 @@ POST /api/v1/client/devices/challenge
 }
 ```
 
-## 2.3 提交设备挑战签名
+## 2.4 提交设备挑战签名
 
 ```text
 POST /api/v1/client/devices/challenge/verify
 ```
+
+请求头：
+
+- `Authorization: Bearer <access_token>`
 
 请求体：
 
@@ -77,7 +144,7 @@ POST /api/v1/client/devices/challenge/verify
 }
 ```
 
-## 2.4 刷新会话
+## 2.5 刷新会话
 
 ```text
 POST /api/v1/client/auth/refresh
@@ -92,7 +159,7 @@ POST /api/v1/client/auth/refresh
 }
 ```
 
-## 2.5 退出登录
+## 2.6 退出登录
 
 ```text
 POST /api/v1/client/auth/logout
@@ -110,6 +177,10 @@ POST /api/v1/client/auth/logout
 ```text
 POST /api/v1/client/devices/register
 ```
+
+请求头：
+
+- `Authorization: Bearer <access_token>`
 
 请求体：
 
