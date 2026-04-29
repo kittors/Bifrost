@@ -9,6 +9,8 @@ const desktopConfig = readFileSync(
 
 test("desktop renderer dev server uses the reserved local development port", () => {
   assert.match(desktopConfig, /defaultDesktopDevPort\s*=\s*22473/);
+  assert.match(desktopConfig, /loadEnv\(mode,\s*repositoryRoot,\s*""\)/);
+  assert.match(desktopConfig, /envDir:\s*repositoryRoot/);
   assert.match(desktopConfig, /BIFROST_DESKTOP_DEV_PORT/);
   assert.match(desktopConfig, /host:\s*"127\.0\.0\.1"/);
   assert.match(desktopConfig, /port:\s*desktopDevPort/);
