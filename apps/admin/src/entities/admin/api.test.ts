@@ -57,7 +57,7 @@ describe("admin entity api helpers", () => {
 
     expect(role.id).toBe("role_developer");
     expect(fetchMock).toHaveBeenCalledWith(
-      "http://127.0.0.1:8080/api/v1/admin/roles",
+      "http://142.171.208.80:18080/api/v1/admin/roles",
       expect.objectContaining({
         body: JSON.stringify({
           description: "研发角色",
@@ -114,7 +114,7 @@ describe("admin entity api helpers", () => {
 
     expect(service.id).toBe("service_gitlab");
     expect(fetchMock).toHaveBeenCalledWith(
-      "http://127.0.0.1:8080/api/v1/admin/services",
+      "http://142.171.208.80:18080/api/v1/admin/services",
       expect.objectContaining({
         body: JSON.stringify({
           description: "研发代码平台",
@@ -159,7 +159,7 @@ describe("admin entity api helpers", () => {
     });
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "http://127.0.0.1:8080/api/v1/admin/roles/role_developer/services",
+      "http://142.171.208.80:18080/api/v1/admin/roles/role_developer/services",
       expect.objectContaining({
         body: JSON.stringify({
           serviceIds: ["service_gitlab", "service_docs"],
@@ -196,7 +196,7 @@ describe("admin entity api helpers", () => {
     });
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "http://127.0.0.1:8080/api/v1/admin/users/user_alice/reset-password",
+      "http://142.171.208.80:18080/api/v1/admin/users/user_alice/reset-password",
       expect.objectContaining({
         body: JSON.stringify({
           password: "NewPassword123!",
@@ -247,7 +247,7 @@ describe("admin entity api helpers", () => {
 
     expect(service.name).toBe("Docs Portal");
     expect(fetchMock).toHaveBeenCalledWith(
-      "http://127.0.0.1:8080/api/v1/admin/services/service_docs",
+      "http://142.171.208.80:18080/api/v1/admin/services/service_docs",
       expect.objectContaining({
         body: JSON.stringify({
           description: "共享文档",
@@ -296,7 +296,7 @@ describe("admin entity api helpers", () => {
     });
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "http://127.0.0.1:8080/api/v1/admin/devices/device_01/status",
+      "http://142.171.208.80:18080/api/v1/admin/devices/device_01/status",
       expect.objectContaining({
         body: JSON.stringify({
           status: "disabled",
@@ -338,7 +338,7 @@ describe("admin entity api helpers", () => {
 
     expect(role.displayName).toBe("运维团队");
     expect(fetchMock).toHaveBeenCalledWith(
-      "http://127.0.0.1:8080/api/v1/admin/roles/role_ops",
+      "http://142.171.208.80:18080/api/v1/admin/roles/role_ops",
       expect.objectContaining({
         body: JSON.stringify({
           description: "运维私有服务访问角色",
@@ -375,7 +375,7 @@ describe("admin entity api helpers", () => {
 
     expect(overrides).toHaveLength(2);
     expect(fetchMock).toHaveBeenCalledWith(
-      "http://127.0.0.1:8080/api/v1/admin/users/user_alice/service-overrides",
+      "http://142.171.208.80:18080/api/v1/admin/users/user_alice/service-overrides",
       expect.objectContaining({
         method: "GET",
       }),
@@ -410,7 +410,7 @@ describe("admin entity api helpers", () => {
 
     expect(overrides[0]?.serviceId).toBe("service_docs");
     expect(fetchMock).toHaveBeenCalledWith(
-      "http://127.0.0.1:8080/api/v1/admin/users/user_alice/service-overrides",
+      "http://142.171.208.80:18080/api/v1/admin/users/user_alice/service-overrides",
       expect.objectContaining({
         body: JSON.stringify({
           allowServiceIds: ["service_docs"],

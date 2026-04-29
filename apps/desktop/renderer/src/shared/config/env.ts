@@ -1,4 +1,4 @@
-const fallbackGatewayBaseURL = "http://127.0.0.1:8080";
+const fallbackGatewayBaseURL = "http://142.171.208.80:18080";
 
 export function normalizeGatewayBaseURL(value: string) {
   const trimmed = value.trim();

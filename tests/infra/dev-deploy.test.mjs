@@ -1,12 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import {
-  existsSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -70,15 +64,19 @@ test("dev deploy compose keeps private upstream HTTP services off public ports",
     "mock-internal-admin",
   ]) {
     assert.deepEqual(services[serviceName]?.ports ?? [], [], `${serviceName} must stay private`);
-    assert.ok(services[serviceName]?.healthcheck, `${serviceName} must expose an internal healthcheck`);
+    assert.ok(
+      services[serviceName]?.healthcheck,
+      `${serviceName} must expose an internal healthcheck`,
+    );
   }
 
   assert.deepEqual(services.gateway?.ports, [
     { mode: "ingress", host_ip: "0.0.0.0", target: 8080, published: "18080", protocol: "tcp" },
   ]);
-  assert.deepEqual(services.postgres?.volumes?.map((volume) => volume.target), [
-    "/var/lib/postgresql",
-  ]);
+  assert.deepEqual(
+    services.postgres?.volumes?.map((volume) => volume.target),
+    ["/var/lib/postgresql"],
+  );
   assert.equal(services.gateway?.environment?.BIFROST_ENV, "production");
   assert.match(
     services.gateway?.environment?.BIFROST_UPSTREAM_GITLAB,

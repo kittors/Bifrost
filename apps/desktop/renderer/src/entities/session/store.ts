@@ -55,7 +55,7 @@ function readTheme() {
 export const useDesktopSessionStore = create<DesktopStore>((set) => ({
   device: null,
   errorMessage: null,
-  gatewayBaseURL: "http://127.0.0.1:8080",
+  gatewayBaseURL: "http://142.171.208.80:18080",
   isHydrating: true,
   localProxyStatus: stoppedLocalProxyStatus,
   session: null,

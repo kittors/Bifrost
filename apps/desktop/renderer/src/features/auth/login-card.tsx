@@ -105,7 +105,7 @@ export function LoginCard() {
               label="服务端地址"
               value={gatewayBaseURL}
               onChange={(event) => setGatewayBaseURL(event.target.value)}
-              placeholder="http://127.0.0.1:8080"
+              placeholder="http://142.171.208.80:18080"
             />
             <LoginField
               autoComplete="username"
