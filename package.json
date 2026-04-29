@@ -26,6 +26,7 @@
     "test:e2e:up": "node ./scripts/testing/e2e-up.mjs",
     "test:infra": "node --test tests/infra/*.test.mjs",
     "test:infra:smoke": "node ./scripts/infra/smoke.mjs",
+    "test:remote-api": "node ./scripts/dev/remote-api-smoke.mjs",
     "check": "turbo check",
     "format": "oxfmt apps packages tests scripts package.json pnpm-workspace.yaml turbo.json lefthook.yml .oxlintrc.json .oxfmtrc.json",
     "format:check": "oxfmt apps packages tests scripts package.json pnpm-workspace.yaml turbo.json lefthook.yml .oxlintrc.json .oxfmtrc.json --check",
