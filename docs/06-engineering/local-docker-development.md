@@ -201,7 +201,7 @@ test:e2e
 
 ```bash
 pnpm dev:backend
-pnpm --filter @bifrost/admin dev
+pnpm dev:admin
 ```
 
 `pnpm dev:backend` 不启动 Docker，也不会拉取镜像；它只检查 `http://142.171.208.80:18080` 的 Gateway、readyz 和几个私有 upstream 代理是否可用。这样本地开发 Admin 或 Desktop 时，接口统一走已经由 `dev` 分支自动部署好的远端后端。

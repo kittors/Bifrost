@@ -140,6 +140,8 @@ test("dev deploy script runs migrations seeds and private exposure checks", () =
 test("AGENTS documents branch first dev deployment workflow", () => {
   const agents = readFileSync(join(repositoryRoot, "AGENTS.md"), "utf8");
 
+  assert.match(agents, /所有面向用户的回答默认使用中文/);
+  assert.match(agents, /新增或修改注释时默认使用中文/);
   assert.match(agents, /开发新的功能必须新建分支/);
   assert.match(agents, /测试没有任何问题后合并到 dev 分支/);
   assert.match(agents, /线上测试/);

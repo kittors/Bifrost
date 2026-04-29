@@ -10,6 +10,7 @@ test("local backend development defaults to the remote dev gateway", () => {
   );
   const envExample = readFileSync(new URL("../../.env.example", import.meta.url), "utf8");
 
+  assert.equal(packageJson.scripts["dev:admin"], "pnpm --filter @bifrost/admin dev");
   assert.equal(packageJson.scripts["dev:backend"], "node ./scripts/dev/remote-backend.mjs");
   assert.equal(packageJson.scripts["dev:backend:local"], "node ./scripts/testing/backend-up.mjs");
   assert.equal(
@@ -67,4 +68,6 @@ test("remote backend helper checks gateway and private upstream routing", () => 
   assert.match(helper, /\/readyz/);
   assert.match(helper, /\/debug\/upstreams\/gitlab/);
   assert.match(helper, /VITE_GATEWAY_BASE_URL/);
+  assert.match(helper, /不会启动后台管理页面/);
+  assert.match(helper, /pnpm dev:admin/);
 });
