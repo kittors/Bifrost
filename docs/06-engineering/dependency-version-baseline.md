@@ -14,7 +14,8 @@
 | Node.js LTS | `24.15.0` |
 | pnpm | `10.33.0` |
 | Turborepo | `2.9.6` |
-| Biome | `2.4.12` |
+| Oxlint | `1.62.0` |
+| Oxfmt | `0.47.0` |
 | Changesets | `2.30.0` |
 | Lefthook | `2.1.6` |
 

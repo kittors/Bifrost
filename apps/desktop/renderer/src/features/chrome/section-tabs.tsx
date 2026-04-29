@@ -1,30 +1,29 @@
-import { Button } from "@bifrost/ui";
+import { Tabs } from "@heroui/react";
+import { Activity, Settings, UserRound, Waypoints } from "lucide-react";
 
 import { useDesktopSessionStore } from "../../entities/session/store";
 import type { DesktopView } from "../../entities/session/types";
 
-const tabs: Array<{ label: string; view: DesktopView }> = [
-  { label: "服务", view: "services" },
-  { label: "账号", view: "account" },
-  { label: "设置", view: "settings" },
-  { label: "诊断", view: "diagnostics" },
+const tabs: Array<{ icon: typeof Waypoints; label: string; view: DesktopView }> = [
+  { icon: Waypoints, label: "服务", view: "services" },
+  { icon: UserRound, label: "账号", view: "account" },
+  { icon: Settings, label: "设置", view: "settings" },
+  { icon: Activity, label: "诊断", view: "diagnostics" },
 ];
 
 export function SectionTabs() {
   const { setView, view } = useDesktopSessionStore();
 
   return (
-    <section className="grid grid-cols-4 gap-2">
-      {tabs.map((tab) => (
-        <Button
-          key={tab.view}
-          onClick={() => setView(tab.view)}
-          size="sm"
-          variant={tab.view === view ? "secondary" : "ghost"}
-        >
-          {tab.label}
-        </Button>
-      ))}
-    </section>
+    <Tabs.Root selectedKey={view} onSelectionChange={(key) => setView(String(key) as DesktopView)}>
+      <Tabs.List className="grid w-full grid-cols-4">
+        {tabs.map((tab) => (
+          <Tabs.Tab className="min-w-0 gap-1.5" id={tab.view} key={tab.view}>
+            <tab.icon className="h-3.5 w-3.5" />
+            {tab.label}
+          </Tabs.Tab>
+        ))}
+      </Tabs.List>
+    </Tabs.Root>
   );
 }

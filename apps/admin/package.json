@@ -12,7 +12,7 @@
   "dependencies": {
     "@bifrost/contracts": "workspace:*",
     "@bifrost/design-tokens": "workspace:*",
-    "@bifrost/ui": "workspace:*",
+    "@heroui/react": "3.0.3",
     "@hookform/resolvers": "5.2.2",
     "@tanstack/react-query": "5.99.0",
     "@tanstack/react-router": "1.168.22",
@@ -25,11 +25,11 @@
     "zustand": "5.0.12"
   },
   "devDependencies": {
+    "@bifrost/config-typescript": "workspace:*",
     "@bifrost/config-vitest": "workspace:*",
+    "@tailwindcss/vite": "4.2.2",
     "@testing-library/react": "16.3.2",
     "@testing-library/user-event": "14.6.1",
-    "@bifrost/config-typescript": "workspace:*",
-    "@tailwindcss/vite": "4.2.2",
     "@types/node": "25.6.0",
     "@types/react": "19.2.6",
     "@types/react-dom": "19.2.3",

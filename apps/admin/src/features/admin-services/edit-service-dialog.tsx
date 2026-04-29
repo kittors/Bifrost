@@ -1,4 +1,4 @@
-import { Button, Dialog, ErrorState, Input } from "@bifrost/ui";
+import { Button, Input } from "@heroui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
@@ -10,6 +10,8 @@ import { z } from "zod";
 import { getAdminService, updateAdminService } from "../../entities/admin/api";
 import type { AdminService } from "../../entities/admin/types";
 import { normalizeUnknownError } from "../../shared/lib/http";
+import { ErrorState } from "../../shared/ui/error-state";
+import { Dialog } from "../../shared/ui/dialog";
 
 const editServiceSchema = z.object({
   description: z.string().min(1, "请输入服务描述"),
@@ -157,7 +159,7 @@ export function EditServiceDialog({
             >
               取消
             </Button>
-            <Button disabled={updateServiceMutation.isPending || !service} type="submit">
+            <Button isDisabled={updateServiceMutation.isPending || !service} type="submit">
               {updateServiceMutation.isPending ? "提交中..." : "保存变更"}
             </Button>
           </Dialog.Footer>

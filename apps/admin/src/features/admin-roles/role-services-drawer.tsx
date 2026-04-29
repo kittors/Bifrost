@@ -1,4 +1,4 @@
-import { Button, Drawer } from "@bifrost/ui";
+import { Button } from "@heroui/react";
 import { useMutation } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { replaceRoleServices } from "../../entities/admin/api";
 import type { AdminRole, AdminService } from "../../entities/admin/types";
 import { QueryErrorState } from "../../shared/ui/query-error-state";
+import { Drawer } from "../../shared/ui/drawer";
 
 type RoleServicesDrawerProps = {
   accessToken: string;
@@ -105,7 +106,7 @@ export function RoleServicesDrawer({
             取消
           </Button>
           <Button
-            disabled={replaceRoleServicesMutation.isPending || !role}
+            isDisabled={replaceRoleServicesMutation.isPending || !role}
             onClick={async () => {
               await replaceRoleServicesMutation.mutateAsync();
             }}

@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useDesktopSessionStore } from "../../entities/session/store";
+import { ApiClientError } from "../../shared/lib/http";
 import { renderWithQueryClient } from "../../test/render";
 import { ServicesCard } from "./services-card";
 
@@ -108,5 +109,24 @@ describe("ServicesCard", () => {
     await waitFor(() => {
       expect(openServiceMock).toHaveBeenCalledWith("/s/gitlab/");
     });
+  });
+
+  it("renders the shared error state with requestId when the service list cannot load", async () => {
+    listClientServicesMock.mockRejectedValue(
+      new ApiClientError({
+        code: "POLICY_ACCESS_DENIED",
+        message: "policy denied",
+        requestId: "req_services_denied",
+        statusCode: 403,
+        userMessage: "当前账号没有可访问服务",
+      }),
+    );
+    useDesktopSessionStore.setState({ session });
+
+    renderWithQueryClient(<ServicesCard />);
+
+    expect(await screen.findByText("服务列表不可用")).not.toBeNull();
+    expect(screen.queryByText("当前账号没有可访问服务")).not.toBeNull();
+    expect(screen.queryByText("Request ID: req_services_denied")).not.toBeNull();
   });
 });

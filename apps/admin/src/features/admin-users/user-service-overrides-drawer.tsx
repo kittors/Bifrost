@@ -1,4 +1,4 @@
-import { Button, Drawer, ErrorState } from "@bifrost/ui";
+import { Button } from "@heroui/react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { listUserServiceOverrides, replaceUserServiceOverrides } from "../../entities/admin/api";
 import type { AdminService, AdminUser } from "../../entities/admin/types";
 import { normalizeUnknownError } from "../../shared/lib/http";
+import { ErrorState } from "../../shared/ui/error-state";
+import { Drawer } from "../../shared/ui/drawer";
 
 type UserServiceOverridesDrawerProps = {
   accessToken: string;
@@ -187,7 +189,7 @@ export function UserServiceOverridesDrawer({
             关闭
           </Button>
           <Button
-            disabled={replaceOverridesMutation.isPending || !user}
+            isDisabled={replaceOverridesMutation.isPending || !user}
             onClick={async () => {
               await replaceOverridesMutation.mutateAsync();
             }}

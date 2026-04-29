@@ -1,10 +1,12 @@
 import { spawn } from "node:child_process";
 
-import { e2eEnvironment, e2ePorts } from "./e2e-env.mjs";
+import { e2eEnvironment, e2ePorts, withoutE2EPortOverrides } from "./e2e-env.mjs";
 
 function run(command, args, options = {}) {
   const env =
-    options.useE2EEnv === false ? { ...process.env, ...options.env } : e2eEnvironment(options.env);
+    options.useE2EEnv === false
+      ? withoutE2EPortOverrides({ ...process.env, ...options.env })
+      : e2eEnvironment(options.env);
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       cwd: options.cwd ?? process.cwd(),

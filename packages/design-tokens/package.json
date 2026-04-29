@@ -13,6 +13,9 @@
     "check": "vitest run src/*.test.ts",
     "test": "vitest run src/*.test.ts"
   },
+  "dependencies": {
+    "@heroui/react": "3.0.3"
+  },
   "devDependencies": {
     "vitest": "4.1.4"
   }

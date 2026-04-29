@@ -21,7 +21,6 @@ export function DesktopApp() {
     refreshActiveSession,
     session,
     setDevice,
-    setErrorMessage,
     theme,
     view,
   } = useDesktopSessionStore();
@@ -31,9 +30,9 @@ export function DesktopApp() {
     void loadLocalDeviceIdentity()
       .then(setDevice)
       .catch(() => {
-        setErrorMessage("本地设备身份读取失败");
+        setDevice(null);
       });
-  }, [hydrateFromSecureStore, setDevice, setErrorMessage]);
+  }, [hydrateFromSecureStore, setDevice]);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -63,16 +62,15 @@ export function DesktopApp() {
   });
 
   return (
-    <WindowShell>
-      <ConnectionBanner
-        device={device}
-        diagnostics={diagnosticsQuery.data ?? null}
-        errorMessage={errorMessage}
-        session={session}
-      />
-
+    <WindowShell mode={session ? "app" : "login"}>
       {session ? (
         <>
+          <ConnectionBanner
+            device={device}
+            diagnostics={diagnosticsQuery.data ?? null}
+            errorMessage={errorMessage}
+            session={session}
+          />
           <SectionTabs />
           {view === "services" ? <ServicesCard /> : null}
           {view === "account" ? <AccountCard /> : null}

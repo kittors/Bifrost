@@ -1,4 +1,4 @@
-import { Button, Dialog, ErrorState, Input } from "@bifrost/ui";
+import { Button, Input } from "@heroui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -8,6 +8,8 @@ import { z } from "zod";
 import { createAdminUser } from "../../entities/admin/api";
 import type { AdminRole } from "../../entities/admin/types";
 import { normalizeUnknownError } from "../../shared/lib/http";
+import { ErrorState } from "../../shared/ui/error-state";
+import { Dialog } from "../../shared/ui/dialog";
 
 const createUserSchema = z.object({
   displayName: z.string().min(1, "请输入显示名"),
@@ -200,7 +202,7 @@ export function CreateUserDialog({
             >
               取消
             </Button>
-            <Button disabled={createUserMutation.isPending} type="submit">
+            <Button isDisabled={createUserMutation.isPending} type="submit">
               {createUserMutation.isPending ? "提交中..." : "创建用户"}
             </Button>
           </Dialog.Footer>

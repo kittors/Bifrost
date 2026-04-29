@@ -1,7 +1,9 @@
-import { Button, EmptyState, Table } from "@bifrost/ui";
+import { Button } from "@heroui/react";
 
 import type { AdminDevice } from "../../entities/admin/types";
+import { EmptyState } from "../../shared/ui/empty-state";
 import { StatusBadge } from "../../shared/ui/status-badge";
+import { Table } from "../../shared/ui/table";
 
 type DevicesTableProps = {
   onOpenDetails: (deviceID: string) => void;
@@ -22,13 +24,11 @@ export function DevicesTable({ onOpenDetails, rows, totalDevices }: DevicesTable
         <Table.Root>
           <Table.Caption>{caption}</Table.Caption>
           <Table.Header>
-            <Table.Row>
-              <Table.Head>设备</Table.Head>
-              <Table.Head>用户</Table.Head>
-              <Table.Head>指纹</Table.Head>
-              <Table.Head>状态</Table.Head>
-              <Table.Head className="text-right">操作</Table.Head>
-            </Table.Row>
+            <Table.Head>设备</Table.Head>
+            <Table.Head>用户</Table.Head>
+            <Table.Head>指纹</Table.Head>
+            <Table.Head>状态</Table.Head>
+            <Table.Head className="text-right">操作</Table.Head>
           </Table.Header>
           <Table.Body>
             {rows.map((device) => (

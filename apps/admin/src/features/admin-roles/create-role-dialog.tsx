@@ -1,4 +1,5 @@
-import { Button, Dialog, Input } from "@bifrost/ui";
+import { Button, Input } from "@heroui/react";
+import { Dialog } from "../../shared/ui/dialog";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -99,7 +100,7 @@ export function CreateRoleDialog({
             >
               取消
             </Button>
-            <Button disabled={createRoleMutation.isPending} type="submit">
+            <Button isDisabled={createRoleMutation.isPending} type="submit">
               {createRoleMutation.isPending ? "提交中..." : "创建角色"}
             </Button>
           </Dialog.Footer>

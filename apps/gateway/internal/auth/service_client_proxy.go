@@ -2,8 +2,6 @@ package auth
 
 import (
 	"context"
-	"database/sql"
-	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -12,7 +10,7 @@ import (
 	"github.com/kittors/bifrost/apps/gateway/internal/contracts"
 )
 
-// 客户端服务目录与网关代理授权都依赖同一套访问判断，因此集中在一个文件维护。
+// 客户端服务目录与网关代理授权入口保留在本文件，数据读取和策略判断拆到相邻文件。
 func (s Service) ListClientServices(ctx context.Context, input ListClientServicesInput) ([]ClientService, error) {
 	principal, err := s.loadClientPrincipal(ctx, input.AccessToken)
 	if err != nil {
@@ -244,134 +242,4 @@ func (s Service) ResolveProxyRequest(ctx context.Context, input ResolveProxyRequ
 		DeviceID:     principal.Claims.DeviceID,
 		AccessSource: accessSource,
 	}, nil
-}
-
-func (s Service) RecordProxyAccessEvent(ctx context.Context, input RecordProxyAccessEventInput) error {
-	summary := strings.TrimSpace(input.Summary)
-	if summary == "" {
-		summary = "service access event"
-	}
-
-	return s.recordAuditEvent(ctx, auditEventInput{
-		RequestID:   input.RequestID,
-		Type:        input.Type,
-		ActorUserID: input.UserID,
-		TargetType:  "service",
-		TargetID:    input.ServiceID,
-		ServiceID:   input.ServiceID,
-		Result:      input.Result,
-		Summary:     summary,
-	})
-}
-
-type proxyServiceRecord struct {
-	ID          string
-	Key         string
-	Name        string
-	PublicPath  string
-	UpstreamURL string
-	Status      string
-}
-
-func (s Service) loadService(ctx context.Context, serviceID string) (ClientService, error) {
-	row := s.db().QueryRowContext(
-		ctx,
-		`SELECT id, key, name, description, group_name, status, public_path
-		FROM services
-		WHERE id = $1 AND status = 'enabled'`,
-		serviceID,
-	)
-
-	var service ClientService
-	if err := row.Scan(&service.ID, &service.Key, &service.Name, &service.Description, &service.Group, &service.Status, &service.PublicPath); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return ClientService{}, &ServiceError{
-				StatusCode:  http.StatusNotFound,
-				Code:        contracts.ErrorCodeServiceNotFound,
-				Message:     "service not found",
-				UserMessage: "服务不存在",
-			}
-		}
-		return ClientService{}, fmt.Errorf("query service: %w", err)
-	}
-
-	return service, nil
-}
-
-func (s Service) loadProxyServiceByKey(ctx context.Context, serviceKey string) (proxyServiceRecord, error) {
-	row := s.db().QueryRowContext(
-		ctx,
-		`SELECT id, key, name, public_path, upstream_url, status
-		FROM services
-		WHERE key = $1`,
-		serviceKey,
-	)
-
-	var service proxyServiceRecord
-	if err := row.Scan(&service.ID, &service.Key, &service.Name, &service.PublicPath, &service.UpstreamURL, &service.Status); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return proxyServiceRecord{}, &ServiceError{
-				StatusCode:  http.StatusNotFound,
-				Code:        contracts.ErrorCodeServiceNotFound,
-				Message:     "service not found",
-				UserMessage: "服务不存在",
-			}
-		}
-		return proxyServiceRecord{}, fmt.Errorf("query proxy service by key: %w", err)
-	}
-
-	return service, nil
-}
-
-func (s Service) resolveServiceAccess(ctx context.Context, userID string, roleIDs []string, serviceID string) (string, bool, error) {
-	row := s.db().QueryRowContext(
-		ctx,
-		`SELECT effect
-		FROM user_service_overrides
-		WHERE user_id = $1 AND service_id = $2`,
-		userID,
-		serviceID,
-	)
-
-	var effect string
-	if err := row.Scan(&effect); err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return "", false, fmt.Errorf("query user service override: %w", err)
-	}
-	if effect == "deny" {
-		return "deny", false, nil
-	}
-	if effect == "allow" {
-		return "user", true, nil
-	}
-
-	if len(roleIDs) == 0 {
-		return "", false, nil
-	}
-
-	placeholders := make([]string, 0, len(roleIDs))
-	args := make([]any, 0, len(roleIDs)+1)
-	args = append(args, serviceID)
-	for index, roleID := range roleIDs {
-		placeholders = append(placeholders, fmt.Sprintf("$%d", index+2))
-		args = append(args, roleID)
-	}
-
-	query := fmt.Sprintf(
-		`SELECT EXISTS (
-			SELECT 1
-			FROM role_services
-			WHERE service_id = $1 AND role_id IN (%s)
-		)`,
-		strings.Join(placeholders, ","),
-	)
-
-	var roleAllowed bool
-	if err := s.db().QueryRowContext(ctx, query, args...).Scan(&roleAllowed); err != nil {
-		return "", false, fmt.Errorf("query role service access: %w", err)
-	}
-	if roleAllowed {
-		return "role", true, nil
-	}
-
-	return "", false, nil
 }

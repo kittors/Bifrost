@@ -12,6 +12,6 @@
 ## 运维注意事项
 
 - 默认种子密码只能用于本地或试用环境。
-- 生产环境必须设置强随机 `BIFROST_TOKEN_SECRET`。
+- 生产环境必须设置 `BIFROST_ENV=production` 和强随机 `BIFROST_TOKEN_SECRET`。
 - 生产数据库必须纳入备份和恢复演练。
 - TLS 证书到期前必须有提醒和轮换记录。

@@ -1,15 +1,15 @@
 {
   "name": "@bifrost/desktop",
   "version": "0.0.0",
+  "private": true,
   "description": "Bifrost desktop client",
   "homepage": "https://github.com/kittors/Bifrost",
-  "main": "out/main/index.js",
-  "private": true,
-  "type": "module",
   "author": {
     "name": "Kittors",
     "email": "14817208+kittors@users.noreply.github.com"
   },
+  "type": "module",
+  "main": "out/main/index.js",
   "scripts": {
     "build": "electron-vite build && tsc --noEmit",
     "check": "tsc --noEmit",
@@ -23,7 +23,7 @@
   "dependencies": {
     "@bifrost/contracts": "workspace:*",
     "@bifrost/design-tokens": "workspace:*",
-    "@bifrost/ui": "workspace:*",
+    "@heroui/react": "3.0.3",
     "@tanstack/react-query": "5.99.0",
     "lucide-react": "1.8.0",
     "react": "19.2.5",

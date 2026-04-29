@@ -2,8 +2,8 @@
   "name": "bifrost",
   "version": "0.0.0",
   "private": true,
-  "packageManager": "pnpm@10.33.0",
   "scripts": {
+    "preinstall": "node ./scripts/package-manager/ensure-pnpm.mjs",
     "dev": "turbo dev",
     "dev:backend": "node ./scripts/testing/backend-up.mjs",
     "dev:backend:down": "node ./scripts/testing/e2e-down.mjs",
@@ -24,15 +24,26 @@
     "test:infra": "node --test tests/infra/*.test.mjs",
     "test:infra:smoke": "node ./scripts/infra/smoke.mjs",
     "check": "turbo check",
-    "format": "biome format --write .",
-    "lint": "biome check ."
+    "format": "oxfmt apps packages tests scripts package.json pnpm-workspace.yaml turbo.json lefthook.yml .oxlintrc.json .oxfmtrc.json",
+    "format:check": "oxfmt apps packages tests scripts package.json pnpm-workspace.yaml turbo.json lefthook.yml .oxlintrc.json .oxfmtrc.json --check",
+    "lint": "oxlint . --deny-warnings",
+    "lint:fix": "oxlint . --fix"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.12",
     "@playwright/test": "1.59.1",
+    "oxfmt": "0.47.0",
+    "oxlint": "1.62.0",
     "tailwindcss": "4.2.2",
     "turbo": "2.9.6",
     "typescript": "6.0.3",
     "vitest": "4.1.4"
+  },
+  "packageManager": "pnpm@10.33.0",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "electron",
+      "electron-winstaller",
+      "esbuild"
+    ]
   }
 }

@@ -35,6 +35,20 @@ export function resolveApiErrorMessage(error: unknown, fallbackMessage: string) 
   return fallbackMessage;
 }
 
+export function normalizeUnknownError(error: unknown) {
+  if (error instanceof ApiClientError) {
+    return error;
+  }
+
+  return new ApiClientError({
+    code: unknownErrorCode(),
+    message: error instanceof Error ? error.message : "unknown error",
+    requestId: "",
+    statusCode: 500,
+    userMessage: "服务暂时不可用，请稍后再试",
+  });
+}
+
 function unknownErrorCode(): ErrorCode {
   return ERROR_CODES.includes("COMMON_INTERNAL_ERROR") ? "COMMON_INTERNAL_ERROR" : ERROR_CODES[0];
 }

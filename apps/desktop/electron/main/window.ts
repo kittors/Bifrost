@@ -4,18 +4,18 @@ import { BrowserWindow, shell } from "electron";
 // 桌面窗口保持“小卡片”尺寸，并显式锁定安全 webPreferences。
 export async function createMainWindow() {
   const window = new BrowserWindow({
-    height: 560,
-    minHeight: 480,
-    minWidth: 380,
+    height: 760,
+    minHeight: 680,
+    minWidth: 520,
     show: false,
-    title: "Bifrost",
+    title: "Bifrost Desktop",
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
       preload: join(__dirname, "../preload/index.js"),
       sandbox: true,
     },
-    width: 420,
+    width: 640,
   });
 
   window.once("ready-to-show", () => {

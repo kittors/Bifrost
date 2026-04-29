@@ -7,7 +7,10 @@ import (
 	"time"
 )
 
+const defaultDevelopmentTokenSecret = "local-development-bifrost-token-secret-32bytes"
+
 type Config struct {
+	Environment     string
 	DatabaseURL     string
 	ListenAddress   string
 	Upstreams       map[string]string
@@ -28,9 +31,10 @@ func Load(overrides map[string]string) (Config, error) {
 	}
 
 	cfg := Config{
+		Environment:     lookup(overrides, "BIFROST_ENV", "development"),
 		DatabaseURL:     lookup(overrides, "BIFROST_DATABASE_URL", "postgres://bifrost:bifrost@127.0.0.1:5432/bifrost?sslmode=disable"),
 		ListenAddress:   ":" + lookup(overrides, "PORT", "8080"),
-		TokenSecret:     lookup(overrides, "BIFROST_TOKEN_SECRET", "dev-only-bifrost-token-secret-change-me-32bytes"),
+		TokenSecret:     lookup(overrides, "BIFROST_TOKEN_SECRET", defaultDevelopmentTokenSecret),
 		AccessTokenTTL:  accessTokenTTL,
 		RefreshTokenTTL: refreshTokenTTL,
 		Upstreams: map[string]string{
@@ -41,7 +45,27 @@ func Load(overrides map[string]string) (Config, error) {
 		},
 	}
 
+	if err := validate(cfg); err != nil {
+		return Config{}, err
+	}
+
 	return cfg, nil
+}
+
+func validate(cfg Config) error {
+	if cfg.Environment != "production" {
+		return nil
+	}
+
+	if cfg.TokenSecret == defaultDevelopmentTokenSecret {
+		return fmt.Errorf("BIFROST_TOKEN_SECRET must be explicitly set in production")
+	}
+
+	if len(cfg.TokenSecret) < 32 {
+		return fmt.Errorf("BIFROST_TOKEN_SECRET must be at least 32 characters in production")
+	}
+
+	return nil
 }
 
 func lookup(overrides map[string]string, key string, fallback string) string {

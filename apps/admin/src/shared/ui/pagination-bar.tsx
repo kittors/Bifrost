@@ -1,4 +1,4 @@
-import { Button } from "@bifrost/ui";
+import { Button } from "@heroui/react";
 
 type PaginationBarProps = {
   onPageChange: (page: number) => void;
@@ -18,7 +18,7 @@ export function PaginationBar({ onPageChange, page, pageSize, total }: Paginatio
       </div>
       <div className="flex items-center gap-2">
         <Button
-          disabled={safePage <= 1}
+          isDisabled={safePage <= 1}
           onClick={() => onPageChange(safePage - 1)}
           size="sm"
           variant="secondary"
@@ -26,7 +26,7 @@ export function PaginationBar({ onPageChange, page, pageSize, total }: Paginatio
           上一页
         </Button>
         <Button
-          disabled={safePage >= pageCount}
+          isDisabled={safePage >= pageCount}
           onClick={() => onPageChange(safePage + 1)}
           size="sm"
           variant="secondary"

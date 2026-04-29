@@ -5,7 +5,7 @@
 Monorepo 结构必须服务于以下目标：
 
 - 客户端、后台、服务端文档与共享包统一管理
-- 设计 token、UI 组件、API 契约只有一份事实源
+- 设计 token、第三方 UI 依赖版本、API 契约只有一份事实源
 - 能清晰区分业务应用与共享能力
 - 不让前端和后端各自形成孤立工程体系
 
@@ -21,11 +21,9 @@ Bifrost/
     gateway/
 
   packages/
-    ui/
     design-tokens/
     contracts/
     config-typescript/
-    config-biome/
     shared-types/
     shared-utils/
 
@@ -35,7 +33,8 @@ Bifrost/
   package.json
   pnpm-workspace.yaml
   turbo.json
-  biome.json
+  .oxlintrc.json
+  .oxfmtrc.json
   README.md
 ```
 
@@ -126,17 +125,7 @@ apps/gateway/
 
 ## 4. packages 目录职责
 
-## 4.1 packages/ui
-
-项目级共享 UI 组件库。
-
-职责：
-
-- 放置基于 shadcn/ui 改造后的共享组件
-- 放置布局组件、表格壳、表单壳、导航壳、状态徽标等
-- 不放具体业务页面
-
-## 4.2 packages/design-tokens
+## 4.1 packages/design-tokens
 
 统一设计 token 与全局样式入口。
 
@@ -148,7 +137,7 @@ apps/gateway/
 
 这是唯一允许承载全局样式语义的包。
 
-## 4.3 packages/contracts
+## 4.2 packages/contracts
 
 统一契约包。
 
@@ -162,7 +151,7 @@ apps/gateway/
 
 客户端与后台都从这里消费类型与协议定义。
 
-## 4.4 packages/config-typescript
+## 4.3 packages/config-typescript
 
 统一 TypeScript 配置。
 
@@ -174,11 +163,7 @@ apps/gateway/
 
 避免各应用自行散落 tsconfig 规则。
 
-## 4.5 packages/config-biome
-
-统一 Biome 配置与检查规则。
-
-## 4.6 packages/shared-types / shared-utils
+## 4.4 packages/shared-types / shared-utils
 
 仅放跨应用通用的类型与纯函数工具。
 

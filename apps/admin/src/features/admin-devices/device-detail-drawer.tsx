@@ -1,10 +1,11 @@
-import { Button, Drawer } from "@bifrost/ui";
+import { Button } from "@heroui/react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { getAdminDevice, setAdminDeviceStatus } from "../../entities/admin/api";
 import { QueryErrorState } from "../../shared/ui/query-error-state";
 import { StatusBadge } from "../../shared/ui/status-badge";
+import { Drawer } from "../../shared/ui/drawer";
 
 type DeviceDetailDrawerProps = {
   accessToken: string;
@@ -98,7 +99,7 @@ export function DeviceDetailDrawer({
             关闭
           </Button>
           <Button
-            disabled={!device || statusMutation.isPending}
+            isDisabled={!device || statusMutation.isPending}
             onClick={async () => {
               await statusMutation.mutateAsync();
             }}

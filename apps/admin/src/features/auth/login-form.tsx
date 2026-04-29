@@ -1,4 +1,4 @@
-import { Button, ErrorState, Input } from "@bifrost/ui";
+import { Button, Input } from "@heroui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 import { normalizeUnknownError } from "../../shared/lib/http";
+import { ErrorState } from "../../shared/ui/error-state";
 import { adminLogin } from "./api";
 import { useAdminSessionStore } from "./store";
 
@@ -71,7 +72,6 @@ export function LoginForm() {
             autoComplete="username"
             id="admin-login-username"
             placeholder="admin"
-            size="lg"
             {...form.register("username")}
           />
           {form.formState.errors.username ? (
@@ -87,7 +87,6 @@ export function LoginForm() {
             autoComplete="current-password"
             id="admin-login-password"
             placeholder="请输入管理员密码"
-            size="lg"
             type="password"
             {...form.register("password")}
           />
@@ -106,7 +105,7 @@ export function LoginForm() {
           />
         ) : null}
 
-        <Button className="w-full" disabled={mutation.isPending} size="lg" type="submit">
+        <Button className="w-full" isDisabled={mutation.isPending} size="lg" type="submit">
           {mutation.isPending ? "登录中..." : "登录后台"}
         </Button>
       </form>

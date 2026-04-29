@@ -76,10 +76,16 @@ func (a *App) handleAdminRoleList(writer http.ResponseWriter, request *http.Requ
 		return
 	}
 
+	page, pageSize, queryErr := parsePaginationQuery(request)
+	if queryErr != nil {
+		a.writeAPIError(writer, requestID, timestamp, *queryErr)
+		return
+	}
+
 	result, err := a.authService.ListAdminRoles(request.Context(), auth.ListAdminRolesInput{
 		AccessToken: token,
-		Page:        parseIntQuery(request, "page", 1),
-		PageSize:    parseIntQuery(request, "pageSize", 20),
+		Page:        page,
+		PageSize:    pageSize,
 		Keyword:     strings.TrimSpace(request.URL.Query().Get("keyword")),
 	})
 	if err != nil {

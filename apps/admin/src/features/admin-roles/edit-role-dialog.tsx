@@ -1,4 +1,4 @@
-import { Button, Dialog, ErrorState, Input } from "@bifrost/ui";
+import { Button, Input } from "@heroui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { useEffect } from "react";
@@ -9,6 +9,8 @@ import { z } from "zod";
 import { updateAdminRole } from "../../entities/admin/api";
 import type { AdminRole } from "../../entities/admin/types";
 import { normalizeUnknownError } from "../../shared/lib/http";
+import { ErrorState } from "../../shared/ui/error-state";
+import { Dialog } from "../../shared/ui/dialog";
 
 const editRoleSchema = z.object({
   description: z.string().min(1, "请输入角色描述"),
@@ -119,7 +121,7 @@ export function EditRoleDialog({
             >
               取消
             </Button>
-            <Button disabled={updateRoleMutation.isPending || !role} type="submit">
+            <Button isDisabled={updateRoleMutation.isPending || !role} type="submit">
               {updateRoleMutation.isPending ? "提交中..." : "保存角色"}
             </Button>
           </Dialog.Footer>

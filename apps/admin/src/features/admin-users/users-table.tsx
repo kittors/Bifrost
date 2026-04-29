@@ -1,8 +1,10 @@
-import { Button, EmptyState, Table } from "@bifrost/ui";
+import { Button } from "@heroui/react";
 
 import type { AdminUser } from "../../entities/admin/types";
 import { formatList, formatStatusLabel } from "../../shared/lib/format";
+import { EmptyState } from "../../shared/ui/empty-state";
 import { StatusBadge } from "../../shared/ui/status-badge";
+import { Table } from "../../shared/ui/table";
 
 type UsersTableProps = {
   keyword: string;
@@ -37,13 +39,11 @@ export function UsersTable({
         <Table.Root>
           <Table.Caption>{resultCaption}</Table.Caption>
           <Table.Header>
-            <Table.Row>
-              <Table.Head>用户</Table.Head>
-              <Table.Head>邮箱</Table.Head>
-              <Table.Head>角色</Table.Head>
-              <Table.Head>状态</Table.Head>
-              <Table.Head className="text-right">操作</Table.Head>
-            </Table.Row>
+            <Table.Head>用户</Table.Head>
+            <Table.Head>邮箱</Table.Head>
+            <Table.Head>角色</Table.Head>
+            <Table.Head>状态</Table.Head>
+            <Table.Head className="text-right">操作</Table.Head>
           </Table.Header>
           <Table.Body>
             {rows.map((user) => (

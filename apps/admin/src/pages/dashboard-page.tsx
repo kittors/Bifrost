@@ -1,4 +1,3 @@
-import { EmptyState } from "@bifrost/ui";
 import { useQuery } from "@tanstack/react-query";
 import {
   listAdminAuditEvents,
@@ -9,6 +8,7 @@ import {
 } from "../entities/admin/api";
 import { getCurrentAdminSession } from "../features/auth/store";
 import { formatAuditType } from "../shared/lib/format";
+import { EmptyState } from "../shared/ui/empty-state";
 import { StatusBadge } from "../shared/ui/status-badge";
 
 function SummaryCard({

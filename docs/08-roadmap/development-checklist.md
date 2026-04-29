@@ -1,6 +1,7 @@
 # Bifrost 第一阶段详细开发清单
 
 > **执行要求：**
+>
 > 1. 所有任务使用复选框跟踪。
 > 2. 任务完成后必须在同一行末尾追加完成时间。
 > 3. 完成时间统一使用 `Asia/Shanghai` 时区，格式为 `YYYY-MM-DD HH:mm CST`。
@@ -51,7 +52,7 @@
 - [x] 初始化 `apps/desktop`（完成时间：2026-04-17 17:43 CST）
 - [x] 初始化 `apps/admin`（完成时间：2026-04-17 17:43 CST）
 - [x] 初始化 `apps/gateway`（完成时间：2026-04-17 17:43 CST）
-- [x] 初始化 `packages/ui`（完成时间：2026-04-17 17:43 CST）
+- [x] 初始化前端 UI 基础能力（已迁移为固定版本 `@heroui/react@3.0.3`）
 - [x] 初始化 `packages/design-tokens`（完成时间：2026-04-17 17:43 CST）
 - [x] 初始化 `packages/contracts`（完成时间：2026-04-17 17:43 CST）
 - [x] 初始化 `packages/config-typescript`（完成时间：2026-04-17 17:43 CST）
@@ -83,7 +84,7 @@
 - [x] 建立 `packages/design-tokens/src/app.css`（完成时间：2026-04-17 17:43 CST）
 - [x] 落地 Light / Dark 主题 token（完成时间：2026-04-17 19:30 CST）
 - [x] 落地字体、字号、圆角、按钮、输入框尺寸 token（完成时间：2026-04-17 19:30 CST）
-- [x] 建立 `packages/ui` 基础导出结构（完成时间：2026-04-17 17:43 CST）
+- [x] 建立前端基础组件消费约定（已迁移为固定版本 `@heroui/react@3.0.3`）
 - [x] 接入 shadcn/ui 基础组件生成策略（完成时间：2026-04-17 19:30 CST）
 - [x] 落地 `Button`（完成时间：2026-04-17 19:30 CST）
 - [x] 落地 `Input`（完成时间：2026-04-17 19:30 CST）

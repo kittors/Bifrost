@@ -1,6 +1,5 @@
 pre-commit:
   parallel: true
   commands:
-    biome:
+    oxc:
       run: pnpm lint
-

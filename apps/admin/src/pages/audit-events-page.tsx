@@ -1,4 +1,4 @@
-import { Button, Drawer, EmptyState, Table } from "@bifrost/ui";
+import { Button } from "@heroui/react";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
@@ -9,6 +9,9 @@ import { formatAuditType } from "../shared/lib/format";
 import { PaginationBar } from "../shared/ui/pagination-bar";
 import { QueryErrorState } from "../shared/ui/query-error-state";
 import { StatusBadge } from "../shared/ui/status-badge";
+import { Drawer } from "../shared/ui/drawer";
+import { EmptyState } from "../shared/ui/empty-state";
+import { Table } from "../shared/ui/table";
 
 const auditPageSize = 20;
 
@@ -67,12 +70,10 @@ export function AuditEventsPage() {
           <Table.Root>
             <Table.Caption>{caption}</Table.Caption>
             <Table.Header>
-              <Table.Row>
-                <Table.Head>事件</Table.Head>
-                <Table.Head>摘要</Table.Head>
-                <Table.Head>结果</Table.Head>
-                <Table.Head className="text-right">操作</Table.Head>
-              </Table.Row>
+              <Table.Head>事件</Table.Head>
+              <Table.Head>摘要</Table.Head>
+              <Table.Head>结果</Table.Head>
+              <Table.Head className="text-right">操作</Table.Head>
             </Table.Header>
             <Table.Body>
               {rows.map((event) => (

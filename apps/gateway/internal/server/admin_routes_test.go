@@ -2,6 +2,7 @@ package server_test
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -174,6 +175,45 @@ func TestAdminUserRoutes(t *testing.T) {
 	}
 	if stub.setAdminUserStatusInput.Status != "disabled" {
 		t.Fatalf("expected disabled status forwarded, got %q", stub.setAdminUserStatusInput.Status)
+	}
+}
+
+func TestAdminListRoutesRejectInvalidPagination(t *testing.T) {
+	t.Parallel()
+
+	stub := &stubAuthService{}
+	app := server.New(server.Options{
+		ReadyTime: "2026-04-17T12:00:00Z",
+		Now: func() time.Time {
+			return time.Date(2026, time.April, 17, 13, 45, 0, 0, time.UTC)
+		},
+		RequestID: func() string {
+			return "req_invalid_pagination"
+		},
+		AuthService: stub,
+	})
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/admin/users?page=abc&pageSize=20", nil)
+	request.Header.Set("Authorization", "Bearer admin-token")
+	app.Handler().ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d", recorder.Code)
+	}
+
+	var envelope apiEnvelope
+	if err := json.NewDecoder(recorder.Body).Decode(&envelope); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if envelope.Success {
+		t.Fatal("expected invalid pagination response to fail")
+	}
+	if envelope.Error == nil || envelope.Error.Code != string(contracts.ErrorCodeCommonBadRequest) {
+		t.Fatalf("expected COMMON_BAD_REQUEST, got %#v", envelope.Error)
+	}
+	if stub.listAdminUsersInput.AccessToken != "" {
+		t.Fatalf("expected service not to be called for invalid pagination, got %#v", stub.listAdminUsersInput)
 	}
 }
 

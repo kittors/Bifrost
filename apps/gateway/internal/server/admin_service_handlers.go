@@ -51,10 +51,16 @@ func (a *App) handleAdminServiceList(writer http.ResponseWriter, request *http.R
 		return
 	}
 
+	page, pageSize, queryErr := parsePaginationQuery(request)
+	if queryErr != nil {
+		a.writeAPIError(writer, requestID, timestamp, *queryErr)
+		return
+	}
+
 	result, err := a.authService.ListAdminServices(request.Context(), auth.ListAdminServicesInput{
 		AccessToken: token,
-		Page:        parseIntQuery(request, "page", 1),
-		PageSize:    parseIntQuery(request, "pageSize", 20),
+		Page:        page,
+		PageSize:    pageSize,
 		Keyword:     strings.TrimSpace(request.URL.Query().Get("keyword")),
 		Status:      strings.TrimSpace(request.URL.Query().Get("status")),
 		Group:       strings.TrimSpace(request.URL.Query().Get("group")),

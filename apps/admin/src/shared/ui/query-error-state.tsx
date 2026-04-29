@@ -1,6 +1,5 @@
-import { ErrorState } from "@bifrost/ui";
-
 import { normalizeUnknownError } from "../lib/http";
+import { ErrorState } from "./error-state";
 
 export function QueryErrorState({ error, title }: { error: unknown; title: string }) {
   const normalized = normalizeUnknownError(error);

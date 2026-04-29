@@ -1,13 +1,25 @@
-import { Badge } from "@bifrost/ui";
+import { Chip } from "@heroui/react";
 
 export function StatusBadge({ status }: { status: string }) {
   if (status === "enabled" || status === "trusted" || status === "success") {
-    return <Badge variant="success">{status}</Badge>;
+    return (
+      <Chip color="success" size="sm" variant="soft">
+        {status}
+      </Chip>
+    );
   }
 
   if (status === "disabled" || status === "failure" || status === "denied") {
-    return <Badge variant="danger">{status}</Badge>;
+    return (
+      <Chip color="danger" size="sm" variant="soft">
+        {status}
+      </Chip>
+    );
   }
 
-  return <Badge variant="neutral">{status || "-"}</Badge>;
+  return (
+    <Chip color="default" size="sm" variant="soft">
+      {status || "-"}
+    </Chip>
+  );
 }

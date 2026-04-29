@@ -44,10 +44,16 @@ func (a *App) handleAdminDeviceList(writer http.ResponseWriter, request *http.Re
 		return
 	}
 
+	page, pageSize, queryErr := parsePaginationQuery(request)
+	if queryErr != nil {
+		a.writeAPIError(writer, requestID, timestamp, *queryErr)
+		return
+	}
+
 	result, err := a.authService.ListAdminDevices(request.Context(), auth.ListAdminDevicesInput{
 		AccessToken: token,
-		Page:        parseIntQuery(request, "page", 1),
-		PageSize:    parseIntQuery(request, "pageSize", 20),
+		Page:        page,
+		PageSize:    pageSize,
 		Keyword:     strings.TrimSpace(request.URL.Query().Get("keyword")),
 		Status:      strings.TrimSpace(request.URL.Query().Get("status")),
 		UserID:      strings.TrimSpace(request.URL.Query().Get("userId")),

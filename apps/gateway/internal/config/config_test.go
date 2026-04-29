@@ -1,6 +1,7 @@
 package config_test
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -17,6 +18,10 @@ func TestLoadDefaults(t *testing.T) {
 
 	if cfg.ListenAddress != ":8080" {
 		t.Fatalf("expected default listen address :8080, got %s", cfg.ListenAddress)
+	}
+
+	if cfg.Environment != "development" {
+		t.Fatalf("expected default environment development, got %s", cfg.Environment)
 	}
 
 	if cfg.DatabaseURL != "postgres://bifrost:bifrost@127.0.0.1:5432/bifrost?sslmode=disable" {
@@ -45,12 +50,13 @@ func TestLoadFromEnvironment(t *testing.T) {
 
 	cfg, err := config.Load(map[string]string{
 		"PORT":                            "19090",
+		"BIFROST_ENV":                     "production",
 		"BIFROST_DATABASE_URL":            "postgres://example",
 		"BIFROST_UPSTREAM_GITLAB":         "http://gitlab.internal:8080",
 		"BIFROST_UPSTREAM_JENKINS":        "http://jenkins.internal:8080",
 		"BIFROST_UPSTREAM_DOCS":           "http://docs.internal:8080",
 		"BIFROST_UPSTREAM_INTERNAL_ADMIN": "http://internal-admin.internal:8080",
-		"BIFROST_TOKEN_SECRET":            "test-secret-32-bytes-for-config",
+		"BIFROST_TOKEN_SECRET":            "test-secret-32-bytes-for-config-value",
 		"BIFROST_ACCESS_TOKEN_TTL":        "20m",
 		"BIFROST_REFRESH_TOKEN_TTL":       "240h",
 	})
@@ -62,6 +68,10 @@ func TestLoadFromEnvironment(t *testing.T) {
 		t.Fatalf("expected listen address :19090, got %s", cfg.ListenAddress)
 	}
 
+	if cfg.Environment != "production" {
+		t.Fatalf("expected environment production, got %s", cfg.Environment)
+	}
+
 	if cfg.DatabaseURL != "postgres://example" {
 		t.Fatalf("unexpected database URL: %s", cfg.DatabaseURL)
 	}
@@ -70,7 +80,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 		t.Fatalf("unexpected internal-admin upstream: %s", cfg.Upstreams["internal-admin"])
 	}
 
-	if cfg.TokenSecret != "test-secret-32-bytes-for-config" {
+	if cfg.TokenSecret != "test-secret-32-bytes-for-config-value" {
 		t.Fatalf("unexpected token secret: %s", cfg.TokenSecret)
 	}
 
@@ -80,5 +90,34 @@ func TestLoadFromEnvironment(t *testing.T) {
 
 	if cfg.RefreshTokenTTL != 240*time.Hour {
 		t.Fatalf("expected refresh token ttl 240h, got %s", cfg.RefreshTokenTTL)
+	}
+}
+
+func TestLoadRejectsProductionDefaultTokenSecret(t *testing.T) {
+	t.Parallel()
+
+	_, err := config.Load(map[string]string{
+		"BIFROST_ENV": "production",
+	})
+	if err == nil {
+		t.Fatal("expected production config with default token secret to fail")
+	}
+	if !strings.Contains(err.Error(), "BIFROST_TOKEN_SECRET") {
+		t.Fatalf("expected token secret error, got %v", err)
+	}
+}
+
+func TestLoadRejectsProductionWeakTokenSecret(t *testing.T) {
+	t.Parallel()
+
+	_, err := config.Load(map[string]string{
+		"BIFROST_ENV":          "production",
+		"BIFROST_TOKEN_SECRET": "short-secret",
+	})
+	if err == nil {
+		t.Fatal("expected production config with weak token secret to fail")
+	}
+	if !strings.Contains(err.Error(), "at least 32 characters") {
+		t.Fatalf("expected weak token secret error, got %v", err)
 	}
 }

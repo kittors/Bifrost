@@ -1,7 +1,9 @@
-import { Button, EmptyState, Table } from "@bifrost/ui";
+import { Button } from "@heroui/react";
 
 import type { AdminService } from "../../entities/admin/types";
+import { EmptyState } from "../../shared/ui/empty-state";
 import { StatusBadge } from "../../shared/ui/status-badge";
+import { Table } from "../../shared/ui/table";
 
 type ServicesTableProps = {
   onEdit: (service: AdminService) => void;
@@ -30,12 +32,10 @@ export function ServicesTable({
         <Table.Root>
           <Table.Caption>{caption}</Table.Caption>
           <Table.Header>
-            <Table.Row>
-              <Table.Head>服务</Table.Head>
-              <Table.Head>上游地址</Table.Head>
-              <Table.Head>状态</Table.Head>
-              <Table.Head className="text-right">操作</Table.Head>
-            </Table.Row>
+            <Table.Head>服务</Table.Head>
+            <Table.Head>上游地址</Table.Head>
+            <Table.Head>状态</Table.Head>
+            <Table.Head className="text-right">操作</Table.Head>
           </Table.Header>
           <Table.Body>
             {rows.map((service) => (
@@ -64,7 +64,7 @@ export function ServicesTable({
                       编辑
                     </Button>
                     <Button
-                      disabled={pendingServiceID === service.id}
+                      isDisabled={pendingServiceID === service.id}
                       onClick={async () => {
                         await onToggleStatus(service);
                       }}

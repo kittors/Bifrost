@@ -1,4 +1,4 @@
-import { Button, Drawer } from "@bifrost/ui";
+import { Button } from "@heroui/react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -7,6 +7,7 @@ import { getAdminUser, setAdminUserStatus } from "../../entities/admin/api";
 import { formatList } from "../../shared/lib/format";
 import { QueryErrorState } from "../../shared/ui/query-error-state";
 import { StatusBadge } from "../../shared/ui/status-badge";
+import { Drawer } from "../../shared/ui/drawer";
 import { ResetPasswordDialog } from "./reset-password-dialog";
 
 type UserDetailDrawerProps = {
@@ -95,7 +96,7 @@ export function UserDetailDrawer({
 
         <Drawer.Footer className="justify-between">
           <Button
-            disabled={!user}
+            isDisabled={!user}
             onClick={() => {
               setResetOpen(true);
             }}
@@ -115,7 +116,7 @@ export function UserDetailDrawer({
               关闭
             </Button>
             <Button
-              disabled={!user || statusMutation.isPending}
+              isDisabled={!user || statusMutation.isPending}
               onClick={async () => {
                 await statusMutation.mutateAsync();
               }}

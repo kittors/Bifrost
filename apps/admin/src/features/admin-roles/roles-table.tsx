@@ -1,6 +1,8 @@
-import { Button, EmptyState, Table } from "@bifrost/ui";
+import { Button } from "@heroui/react";
 
 import type { AdminRole } from "../../entities/admin/types";
+import { EmptyState } from "../../shared/ui/empty-state";
+import { Table } from "../../shared/ui/table";
 
 type RolesTableProps = {
   keyword: string;
@@ -32,11 +34,9 @@ export function RolesTable({
         <Table.Root>
           <Table.Caption>{caption}</Table.Caption>
           <Table.Header>
-            <Table.Row>
-              <Table.Head>角色</Table.Head>
-              <Table.Head>描述</Table.Head>
-              <Table.Head className="text-right">操作</Table.Head>
-            </Table.Row>
+            <Table.Head>角色</Table.Head>
+            <Table.Head>描述</Table.Head>
+            <Table.Head className="text-right">操作</Table.Head>
           </Table.Header>
           <Table.Body>
             {rows.map((role) => (

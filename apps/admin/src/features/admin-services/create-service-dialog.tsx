@@ -1,4 +1,5 @@
-import { Button, Dialog, Input } from "@bifrost/ui";
+import { Button, Input } from "@heroui/react";
+import { Dialog } from "../../shared/ui/dialog";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -155,7 +156,7 @@ export function CreateServiceDialog({
             >
               取消
             </Button>
-            <Button disabled={createServiceMutation.isPending} type="submit">
+            <Button isDisabled={createServiceMutation.isPending} type="submit">
               {createServiceMutation.isPending ? "提交中..." : "创建服务"}
             </Button>
           </Dialog.Footer>

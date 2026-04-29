@@ -1,4 +1,4 @@
-import { Button, Dialog, ErrorState, Input } from "@bifrost/ui";
+import { Button, Input } from "@heroui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -8,6 +8,8 @@ import { z } from "zod";
 import { resetAdminUserPassword } from "../../entities/admin/api";
 import type { AdminUser } from "../../entities/admin/types";
 import { normalizeUnknownError } from "../../shared/lib/http";
+import { ErrorState } from "../../shared/ui/error-state";
+import { Dialog } from "../../shared/ui/dialog";
 
 const resetPasswordSchema = z.object({
   password: z.string().min(8, "密码至少需要 8 位"),
@@ -105,7 +107,7 @@ export function ResetPasswordDialog({
             >
               取消
             </Button>
-            <Button disabled={resetPasswordMutation.isPending || !user} type="submit">
+            <Button isDisabled={resetPasswordMutation.isPending || !user} type="submit">
               {resetPasswordMutation.isPending ? "提交中..." : "确认重置"}
             </Button>
           </Dialog.Footer>

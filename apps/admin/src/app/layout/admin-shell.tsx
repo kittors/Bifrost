@@ -1,4 +1,4 @@
-import { Button } from "@bifrost/ui";
+import { Button } from "@heroui/react";
 import { Link, Outlet, useLocation, useRouter } from "@tanstack/react-router";
 import {
   ClipboardList,

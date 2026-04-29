@@ -1,4 +1,4 @@
-import { Input } from "@bifrost/ui";
+import { Input } from "@heroui/react";
 
 type ServicesFilterBarProps = {
   keyword: string;

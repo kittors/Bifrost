@@ -1,8 +1,8 @@
 package server
 
 import (
-	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/kittors/bifrost/apps/gateway/internal/contracts"
@@ -32,6 +32,15 @@ func badJSONError() apiError {
 		statusCode:  http.StatusBadRequest,
 		code:        contracts.ErrorCodeCommonBadRequest,
 		message:     "request body must be valid JSON",
+		userMessage: "请求参数不正确",
+	}
+}
+
+func badQueryError(message string) apiError {
+	return apiError{
+		statusCode:  http.StatusBadRequest,
+		code:        contracts.ErrorCodeCommonBadRequest,
+		message:     message,
 		userMessage: "请求参数不正确",
 	}
 }
@@ -171,14 +180,30 @@ func absoluteURL(request *http.Request, publicPath string) string {
 	return scheme + "://" + request.Host + strings.TrimRight(publicPath, "/") + "/"
 }
 
-func parseIntQuery(request *http.Request, key string, fallback int) int {
+func parsePaginationQuery(request *http.Request) (int, int, *apiError) {
+	page, err := parsePositiveIntQuery(request, "page", 1)
+	if err != nil {
+		queryErr := badQueryError("page must be a positive integer")
+		return 0, 0, &queryErr
+	}
+
+	pageSize, err := parsePositiveIntQuery(request, "pageSize", 20)
+	if err != nil {
+		queryErr := badQueryError("pageSize must be a positive integer")
+		return 0, 0, &queryErr
+	}
+
+	return page, pageSize, nil
+}
+
+func parsePositiveIntQuery(request *http.Request, key string, fallback int) (int, error) {
 	value := strings.TrimSpace(request.URL.Query().Get(key))
 	if value == "" {
-		return fallback
+		return fallback, nil
 	}
-	var parsed int
-	if _, err := fmt.Sscanf(value, "%d", &parsed); err != nil || parsed <= 0 {
-		return fallback
+	parsed, err := strconv.Atoi(value)
+	if err != nil || parsed <= 0 {
+		return 0, strconv.ErrSyntax
 	}
-	return parsed
+	return parsed, nil
 }

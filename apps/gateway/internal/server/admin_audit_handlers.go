@@ -24,10 +24,16 @@ func (a *App) handleAdminAuditEventList(writer http.ResponseWriter, request *htt
 		return
 	}
 
+	page, pageSize, queryErr := parsePaginationQuery(request)
+	if queryErr != nil {
+		a.writeAPIError(writer, requestID, timestamp, *queryErr)
+		return
+	}
+
 	result, err := a.authService.ListAdminAuditEvents(request.Context(), auth.ListAdminAuditEventsInput{
 		AccessToken: token,
-		Page:        parseIntQuery(request, "page", 1),
-		PageSize:    parseIntQuery(request, "pageSize", 20),
+		Page:        page,
+		PageSize:    pageSize,
 		Type:        strings.TrimSpace(request.URL.Query().Get("type")),
 		ActorUserID: strings.TrimSpace(request.URL.Query().Get("actorUserId")),
 		TargetType:  strings.TrimSpace(request.URL.Query().Get("targetType")),

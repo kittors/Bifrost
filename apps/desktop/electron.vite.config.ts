@@ -3,6 +3,12 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig, externalizeDepsPlugin } from "electron-vite";
 
+const defaultDesktopDevPort = 22473;
+const desktopDevPort = Number.parseInt(
+  process.env.BIFROST_DESKTOP_DEV_PORT ?? `${defaultDesktopDevPort}`,
+  10,
+);
+
 export default defineConfig({
   main: {
     plugins: [externalizeDepsPlugin()],
@@ -22,6 +28,11 @@ export default defineConfig({
   },
   renderer: {
     root: resolve("renderer"),
+    server: {
+      host: "127.0.0.1",
+      port: desktopDevPort,
+      strictPort: true,
+    },
     build: {
       outDir: resolve("out/renderer"),
       rollupOptions: {

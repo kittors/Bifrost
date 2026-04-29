@@ -21,7 +21,7 @@ describe("design tokens", () => {
     expect(themeCss).toContain("--text-4-size: 16px;");
     expect(themeCss).toContain("--bifrost-btn-md-height: 36px;");
     expect(themeCss).toContain("--bifrost-input-lg-height: 40px;");
-    expect(themeCss).toContain("--bifrost-desktop-window-width: 420px;");
+    expect(themeCss).toContain("--bifrost-desktop-window-width: 640px;");
     expect(themeCss).toContain("--radius-lg: 14px;");
   });
 });

@@ -1,4 +1,4 @@
-import { Button, Input } from "@bifrost/ui";
+import { Button, Input } from "@heroui/react";
 
 type RolesFilterBarProps = {
   keyword: string;
