@@ -1,0 +1,138 @@
+name: bifrost-remote-dev
+
+x-gateway-build: &gateway-build
+  context: ../..
+  dockerfile: apps/gateway/Dockerfile
+
+x-gateway-environment: &gateway-environment
+  BIFROST_ENV: production
+  BIFROST_DATABASE_URL: postgres://bifrost:${BIFROST_DEV_POSTGRES_PASSWORD:?}@postgres:5432/bifrost?sslmode=disable
+  BIFROST_TOKEN_SECRET: ${BIFROST_DEV_TOKEN_SECRET:?}
+  BIFROST_UPSTREAM_GITLAB: http://mock-gitlab:8080
+  BIFROST_UPSTREAM_JENKINS: http://mock-jenkins:8080
+  BIFROST_UPSTREAM_DOCS: http://mock-docs:8080
+  BIFROST_UPSTREAM_INTERNAL_ADMIN: http://mock-internal-admin:8080
+  PORT: "8080"
+
+x-mock-healthcheck: &mock-healthcheck
+  test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health >/dev/null 2>&1 || exit 1"]
+  interval: 5s
+  timeout: 5s
+  retries: 10
+  start_period: 5s
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: bifrost
+      POSTGRES_PASSWORD: ${BIFROST_DEV_POSTGRES_PASSWORD:?}
+      POSTGRES_USER: bifrost
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bifrost -d bifrost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    networks:
+      - bifrost-private
+    volumes:
+      - bifrost-postgres-data:/var/lib/postgresql
+
+  migrate:
+    image: bifrost-remote-dev-gateway:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: ["./bifrost-migrate"]
+    environment: *gateway-environment
+    networks:
+      - bifrost-private
+    restart: "no"
+
+  gateway:
+    build: *gateway-build
+    image: bifrost-remote-dev-gateway:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mock-gitlab:
+        condition: service_healthy
+      mock-jenkins:
+        condition: service_healthy
+      mock-docs:
+        condition: service_healthy
+      mock-internal-admin:
+        condition: service_healthy
+    environment: *gateway-environment
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    networks:
+      - bifrost-private
+      - bifrost-public
+    ports:
+      - "${BIFROST_DEV_GATEWAY_BIND:-0.0.0.0}:${BIFROST_DEV_GATEWAY_PORT:-8080}:8080"
+
+  mock-gitlab:
+    build:
+      context: ../..
+      dockerfile: docker/mock-service/Dockerfile
+    image: bifrost-remote-dev-mock-gitlab:latest
+    environment:
+      PORT: "8080"
+      SERVICE_KEY: gitlab
+      SERVICE_NAME: Remote Dev GitLab
+    healthcheck: *mock-healthcheck
+    networks:
+      - bifrost-private
+
+  mock-jenkins:
+    build:
+      context: ../..
+      dockerfile: docker/mock-service/Dockerfile
+    image: bifrost-remote-dev-mock-jenkins:latest
+    environment:
+      PORT: "8080"
+      SERVICE_KEY: jenkins
+      SERVICE_NAME: Remote Dev Jenkins
+    healthcheck: *mock-healthcheck
+    networks:
+      - bifrost-private
+
+  mock-docs:
+    build:
+      context: ../..
+      dockerfile: docker/mock-service/Dockerfile
+    image: bifrost-remote-dev-mock-docs:latest
+    environment:
+      PORT: "8080"
+      SERVICE_KEY: docs
+      SERVICE_NAME: Remote Dev Docs
+    healthcheck: *mock-healthcheck
+    networks:
+      - bifrost-private
+
+  mock-internal-admin:
+    build:
+      context: ../..
+      dockerfile: docker/mock-service/Dockerfile
+    image: bifrost-remote-dev-mock-internal-admin:latest
+    environment:
+      PORT: "8080"
+      SERVICE_KEY: internal-admin
+      SERVICE_NAME: Remote Dev Internal Admin
+    healthcheck: *mock-healthcheck
+    networks:
+      - bifrost-private
+
+networks:
+  bifrost-private:
+    internal: true
+  bifrost-public:
+
+volumes:
+  bifrost-postgres-data:

@@ -47,6 +47,15 @@ test("docker compose exposes host entrypoints and health checks", () => {
   }
 });
 
+test("docker compose uses the Postgres 18 compatible data volume target", () => {
+  const config = loadComposeConfig();
+  const services = config.services ?? {};
+
+  assert.deepEqual(services.postgres?.volumes?.map((volume) => volume.target), [
+    "/var/lib/postgresql",
+  ]);
+});
+
 test("root scripts and env example expose local infrastructure commands", () => {
   const packageJson = JSON.parse(
     readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
