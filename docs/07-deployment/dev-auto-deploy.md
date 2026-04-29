@@ -20,3 +20,15 @@
 3. 确认 `http://142.171.208.80:18080/healthz` 返回成功。
 4. 使用本地桌面端或 API 通过 Gateway 访问 `/s/gitlab`、`/s/jenkins`、`/s/docs` 等服务。
 5. 不直接访问 mock 服务；这些服务没有公网端口，只能通过 Bifrost Gateway 代理访问。
+
+## 本地开发闭环
+
+本地默认不再启动后端 Docker 环境。开发后端时：
+
+1. 在功能分支修改代码并完成本地测试。
+2. 合并并推送到 `dev`。
+3. 等待 `Deploy Dev` GitHub Action 成功。
+4. 本地运行 `pnpm dev:backend` 检查远端后端可用。
+5. 本地 Admin / Desktop 默认连接 `http://142.171.208.80:18080`。
+
+只有需要本机隔离调试 Gateway、数据库或 mock 服务时，才显式运行 `pnpm dev:backend:local`。

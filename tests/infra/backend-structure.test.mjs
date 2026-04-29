@@ -45,10 +45,7 @@ test("gateway source files stay below the backend file-size guardrail", () => {
 });
 
 test("client proxy auth service is split into focused files", () => {
-  const proxyCoordinator = join(
-    gatewayRoot,
-    "internal/auth/service_client_proxy.go",
-  );
+  const proxyCoordinator = join(gatewayRoot, "internal/auth/service_client_proxy.go");
 
   assert.ok(
     lineCount(proxyCoordinator) <= 260,
@@ -123,10 +120,7 @@ test("backend validation can run infra checks without inherited e2e port overrid
 
   assert.deepEqual(cleaned, { KEEP_ME: "yes" });
 
-  const backendRun = readFileSync(
-    join(repositoryRoot, "scripts/testing/backend-run.mjs"),
-    "utf8",
-  );
+  const backendRun = readFileSync(join(repositoryRoot, "scripts/testing/backend-run.mjs"), "utf8");
   assert.match(backendRun, /withoutE2EPortOverrides/);
   assert.match(backendRun, /useE2EEnv === false/);
 });
@@ -141,9 +135,7 @@ test("production source does not contain dangerous placeholders", () => {
       if (path.endsWith("_test.go") || path.endsWith(".test.ts") || path.endsWith(".test.mjs")) {
         return false;
       }
-      return [".go", ".ts", ".mjs", ".yaml", ".yml"].some((extension) =>
-        path.endsWith(extension),
-      );
+      return [".go", ".ts", ".mjs", ".yaml", ".yml"].some((extension) => path.endsWith(extension));
     }),
   );
 
