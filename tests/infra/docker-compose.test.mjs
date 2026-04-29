@@ -125,6 +125,7 @@ test("admin web image builds the real Vite application", () => {
     existsSync(new URL("../../docker/admin-web/nginx.conf", import.meta.url)),
     "admin nginx runtime config is required",
   );
+  assert.match(dockerfile, /COPY scripts\/package-manager \.\/scripts\/package-manager/);
   assert.match(dockerfile, /pnpm --filter @bifrost\/admin build/);
   assert.match(dockerfile, /COPY --from=builder .*apps\/admin\/dist/);
 });
