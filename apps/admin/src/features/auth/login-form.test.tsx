@@ -1,15 +1,30 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ApiClientError } from "../../shared/lib/http";
 import { renderWithQueryClient } from "../../test/render";
 import { LoginForm } from "./login-form";
 import { useAdminSessionStore } from "./store";
 
-const { adminLoginMock, navigateMock, toastSuccessMock } = vi.hoisted(() => ({
+const { adminLoginMock, navigateMock, toastDangerMock, toastSuccessMock } = vi.hoisted(() => ({
   adminLoginMock: vi.fn(),
   navigateMock: vi.fn(),
+  toastDangerMock: vi.fn(),
   toastSuccessMock: vi.fn(),
 }));
+
+vi.mock("@heroui/react", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@heroui/react")>();
+
+  return {
+    ...actual,
+    toast: {
+      ...actual.toast,
+      danger: toastDangerMock,
+      success: toastSuccessMock,
+    },
+  };
+});
 
 vi.mock("@tanstack/react-router", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@tanstack/react-router")>();
@@ -22,12 +37,6 @@ vi.mock("@tanstack/react-router", async (importOriginal) => {
   };
 });
 
-vi.mock("sonner", () => ({
-  toast: {
-    success: toastSuccessMock,
-  },
-}));
-
 vi.mock("./api", () => ({
   adminLogin: adminLoginMock,
 }));
@@ -37,6 +46,7 @@ describe("LoginForm", () => {
     localStorage.clear();
     navigateMock.mockReset();
     adminLoginMock.mockReset();
+    toastDangerMock.mockReset();
     toastSuccessMock.mockReset();
     useAdminSessionStore.setState({ session: null });
   });
@@ -86,5 +96,47 @@ describe("LoginForm", () => {
     );
     expect(toastSuccessMock).toHaveBeenCalledWith("管理员会话已建立");
     expect(useAdminSessionStore.getState().session).toEqual(session);
+  });
+
+  it("shows login API failures with a HeroUI danger toast", async () => {
+    const user = userEvent.setup();
+    adminLoginMock.mockRejectedValue(
+      new ApiClientError({
+        code: "AUTH_INVALID_CREDENTIALS",
+        message: "invalid credentials",
+        requestId: "req_login_01",
+        statusCode: 401,
+        userMessage: "用户名或密码错误",
+      }),
+    );
+
+    renderWithQueryClient(<LoginForm />);
+
+    await user.type(screen.getByLabelText("用户名"), "admin");
+    await user.type(screen.getByLabelText("密码"), "wrong-password");
+    await user.click(screen.getByRole("button", { name: "登录后台" }));
+
+    await waitFor(() => {
+      expect(toastDangerMock).toHaveBeenCalledWith("登录失败", {
+        description: "用户名或密码错误（requestId: req_login_01）",
+      });
+    });
+
+    expect(screen.queryByText("登录失败")).toBeNull();
+    expect(navigateMock).not.toHaveBeenCalled();
+  });
+
+  it("toggles password visibility from the trailing icon button", async () => {
+    const user = userEvent.setup();
+    renderWithQueryClient(<LoginForm />);
+
+    const passwordInput = screen.getByLabelText("密码");
+    expect(passwordInput.getAttribute("type")).toBe("password");
+
+    await user.click(screen.getByRole("button", { name: "显示密码" }));
+    expect(passwordInput.getAttribute("type")).toBe("text");
+
+    await user.click(screen.getByRole("button", { name: "隐藏密码" }));
+    expect(passwordInput.getAttribute("type")).toBe("password");
   });
 });

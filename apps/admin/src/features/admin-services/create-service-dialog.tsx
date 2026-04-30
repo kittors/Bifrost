@@ -1,9 +1,8 @@
-import { Button, Input } from "@heroui/react";
+import { Button, Checkbox, Input, toast } from "@heroui/react";
 import { Dialog } from "../../shared/ui/dialog";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
 import { z } from "zod";
 
 import { createAdminService } from "../../entities/admin/api";
@@ -135,17 +134,20 @@ export function CreateServiceDialog({
             />
           </label>
 
-          <label className="flex items-center gap-3 rounded-[10px] border border-border bg-surface-2 px-3 py-2">
-            <input
-              checked={form.watch("enabled")}
-              className="h-4 w-4 accent-[var(--bifrost-brand)]"
-              onChange={(event) => {
-                form.setValue("enabled", event.target.checked);
-              }}
-              type="checkbox"
-            />
-            <span className="text-[13px] leading-[20px]">创建后立即启用</span>
-          </label>
+          <Checkbox
+            className="rounded-[10px] border border-border bg-surface-2 px-3 py-2"
+            isSelected={form.watch("enabled")}
+            onChange={(checked) => {
+              form.setValue("enabled", checked);
+            }}
+          >
+            <Checkbox.Control>
+              <Checkbox.Indicator />
+            </Checkbox.Control>
+            <Checkbox.Content className="text-[13px] leading-[20px]">
+              创建后立即启用
+            </Checkbox.Content>
+          </Checkbox>
 
           <Dialog.Footer>
             <Button

@@ -1,6 +1,6 @@
+import { Pagination, toast } from "@heroui/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import {
   listAdminServices,
@@ -13,7 +13,6 @@ import { EditServiceDialog } from "../features/admin-services/edit-service-dialo
 import { ServicesFilterBar } from "../features/admin-services/services-filter-bar";
 import { ServicesTable } from "../features/admin-services/services-table";
 import { getCurrentAdminSession } from "../features/auth/store";
-import { PaginationBar } from "../shared/ui/pagination-bar";
 import { QueryErrorState } from "../shared/ui/query-error-state";
 
 const servicesPageSize = 20;
@@ -37,6 +36,8 @@ export function ServicesPage() {
 
   const rows = servicesQuery.data?.items ?? [];
   const totalServices = servicesQuery.data?.total ?? 0;
+  const pageCount = Math.max(1, Math.ceil(totalServices / servicesPageSize));
+  const safePage = Math.min(Math.max(page, 1), pageCount);
 
   const setServiceStatusMutation = useMutation({
     mutationFn: (service: AdminService) =>
@@ -111,12 +112,40 @@ export function ServicesPage() {
         />
       )}
 
-      <PaginationBar
-        onPageChange={setPage}
-        page={page}
-        pageSize={servicesPageSize}
-        total={totalServices}
-      />
+      <Pagination
+        aria-label="服务列表分页"
+        className="flex flex-wrap items-center justify-between gap-3 rounded-[12px] bg-surface px-4 py-3"
+        size="sm"
+      >
+        <Pagination.Summary className="text-[12px] leading-[18px] text-text-secondary">
+          第 {safePage} / {pageCount} 页，共 {totalServices} 项
+        </Pagination.Summary>
+        <Pagination.Content className="flex items-center gap-1">
+          <Pagination.Item>
+            <Pagination.Previous
+              isDisabled={safePage <= 1}
+              onPress={() => {
+                setPage(safePage - 1);
+              }}
+            >
+              上一页
+            </Pagination.Previous>
+          </Pagination.Item>
+          <Pagination.Item>
+            <Pagination.Link isActive>{safePage}</Pagination.Link>
+          </Pagination.Item>
+          <Pagination.Item>
+            <Pagination.Next
+              isDisabled={safePage >= pageCount}
+              onPress={() => {
+                setPage(safePage + 1);
+              }}
+            >
+              下一页
+            </Pagination.Next>
+          </Pagination.Item>
+        </Pagination.Content>
+      </Pagination>
 
       <EditServiceDialog
         accessToken={accessToken}

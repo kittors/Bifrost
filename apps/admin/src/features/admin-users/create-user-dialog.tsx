@@ -1,8 +1,7 @@
-import { Button, Input } from "@heroui/react";
+import { Button, Checkbox, Input, toast } from "@heroui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
 import { z } from "zod";
 
 import { createAdminUser } from "../../entities/admin/api";
@@ -145,36 +144,35 @@ export function CreateUserDialog({
                 const checked = selectedRoleIDs.includes(role.id);
 
                 return (
-                  <label
+                  <Checkbox
                     className="flex items-start gap-3 rounded-[10px] border border-border bg-surface-2 px-3 py-2"
+                    isSelected={checked}
                     key={role.id}
-                  >
-                    <input
-                      checked={checked}
-                      className="mt-1 h-4 w-4 accent-[var(--bifrost-brand)]"
-                      onChange={(event) => {
-                        const current = form.getValues("roleIds");
+                    onChange={(isSelected) => {
+                      const current = form.getValues("roleIds");
 
-                        // 角色多选直接在当前表单状态上增删，避免额外引入重复状态源。
-                        form.setValue(
-                          "roleIds",
-                          event.target.checked
-                            ? [...current, role.id]
-                            : current.filter((item) => item !== role.id),
-                          { shouldValidate: true },
-                        );
-                      }}
-                      type="checkbox"
-                    />
-                    <div className="min-w-0">
+                      // 角色多选直接在当前表单状态上增删，避免额外引入重复状态源。
+                      form.setValue(
+                        "roleIds",
+                        isSelected
+                          ? [...current, role.id]
+                          : current.filter((item) => item !== role.id),
+                        { shouldValidate: true },
+                      );
+                    }}
+                  >
+                    <Checkbox.Control className="mt-1">
+                      <Checkbox.Indicator />
+                    </Checkbox.Control>
+                    <Checkbox.Content className="min-w-0">
                       <div className="text-[13px] leading-[20px] font-medium">
                         {role.displayName}
                       </div>
                       <div className="text-[12px] leading-[18px] text-text-secondary">
                         {role.name}
                       </div>
-                    </div>
-                  </label>
+                    </Checkbox.Content>
+                  </Checkbox>
                 );
               })}
             </div>

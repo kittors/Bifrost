@@ -1,4 +1,4 @@
-import { Input } from "@heroui/react";
+import { Input, ListBox, Select } from "@heroui/react";
 
 type ServicesFilterBarProps = {
   keyword: string;
@@ -13,6 +13,8 @@ export function ServicesFilterBar({
   onStatusChange,
   status,
 }: ServicesFilterBarProps) {
+  const selectedStatusKey = status || "all";
+
   return (
     <section className="rounded-[14px] border border-border bg-surface p-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -24,17 +26,27 @@ export function ServicesFilterBar({
           placeholder="搜索服务名或标识"
           value={keyword}
         />
-        <select
-          className="h-[32px] rounded-[6px] border border-border bg-surface px-3 text-[13px] leading-[20px]"
-          onChange={(event) => {
-            onStatusChange(event.target.value);
+        <Select
+          aria-label="服务状态筛选"
+          className="w-[150px]"
+          onSelectionChange={(key) => {
+            const value = String(key);
+            onStatusChange(value === "all" ? "" : value);
           }}
-          value={status}
+          selectedKey={selectedStatusKey}
         >
-          <option value="">全部状态</option>
-          <option value="enabled">Enabled</option>
-          <option value="disabled">Disabled</option>
-        </select>
+          <Select.Trigger>
+            <Select.Value />
+            <Select.Indicator />
+          </Select.Trigger>
+          <Select.Popover>
+            <ListBox>
+              <ListBox.Item id="all">全部状态</ListBox.Item>
+              <ListBox.Item id="enabled">Enabled</ListBox.Item>
+              <ListBox.Item id="disabled">Disabled</ListBox.Item>
+            </ListBox>
+          </Select.Popover>
+        </Select>
       </div>
     </section>
   );

@@ -1,7 +1,6 @@
-import { Button } from "@heroui/react";
+import { Button, toast } from "@heroui/react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import { getAdminUser, setAdminUserStatus } from "../../entities/admin/api";
 import { formatList } from "../../shared/lib/format";
