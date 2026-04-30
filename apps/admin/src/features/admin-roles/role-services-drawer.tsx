@@ -1,7 +1,6 @@
-import { Button } from "@heroui/react";
+import { Button, Checkbox, toast } from "@heroui/react";
 import { useMutation } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
 
 import { replaceRoleServices } from "../../entities/admin/api";
 import type { AdminRole, AdminService } from "../../entities/admin/types";
@@ -69,29 +68,28 @@ export function RoleServicesDrawer({
             const checked = selectedServiceIDs.includes(service.id);
 
             return (
-              <label
+              <Checkbox
                 className="flex items-start gap-3 rounded-[10px] border border-border bg-surface-2 px-3 py-2"
+                isSelected={checked}
                 key={service.id}
+                onChange={(isSelected) => {
+                  setSelectedServiceIDs((current) =>
+                    isSelected
+                      ? [...current, service.id]
+                      : current.filter((item) => item !== service.id),
+                  );
+                }}
               >
-                <input
-                  checked={checked}
-                  className="mt-1 h-4 w-4 accent-[var(--bifrost-brand)]"
-                  onChange={(event) => {
-                    setSelectedServiceIDs((current) =>
-                      event.target.checked
-                        ? [...current, service.id]
-                        : current.filter((item) => item !== service.id),
-                    );
-                  }}
-                  type="checkbox"
-                />
-                <div className="min-w-0">
+                <Checkbox.Control className="mt-1">
+                  <Checkbox.Indicator />
+                </Checkbox.Control>
+                <Checkbox.Content className="min-w-0">
                   <div className="text-[13px] leading-[20px] font-medium">{service.name}</div>
                   <div className="text-[12px] leading-[18px] text-text-secondary">
                     {service.key} · {service.group}
                   </div>
-                </div>
-              </label>
+                </Checkbox.Content>
+              </Checkbox>
             );
           })}
         </div>

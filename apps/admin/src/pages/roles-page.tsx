@@ -1,3 +1,4 @@
+import { Pagination } from "@heroui/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -9,7 +10,6 @@ import { RoleServicesDrawer } from "../features/admin-roles/role-services-drawer
 import { RolesFilterBar } from "../features/admin-roles/roles-filter-bar";
 import { RolesTable } from "../features/admin-roles/roles-table";
 import { getCurrentAdminSession } from "../features/auth/store";
-import { PaginationBar } from "../shared/ui/pagination-bar";
 import { QueryErrorState } from "../shared/ui/query-error-state";
 
 const rolesPageSize = 20;
@@ -36,6 +36,8 @@ export function RolesPage() {
   const rows = rolesQuery.data?.items ?? [];
   const services = servicesQuery.data?.items ?? [];
   const totalRoles = rolesQuery.data?.total ?? 0;
+  const pageCount = Math.max(1, Math.ceil(totalRoles / rolesPageSize));
+  const safePage = Math.min(Math.max(page, 1), pageCount);
 
   return (
     <div className="space-y-4">
@@ -88,12 +90,40 @@ export function RolesPage() {
         />
       )}
 
-      <PaginationBar
-        onPageChange={setPage}
-        page={page}
-        pageSize={rolesPageSize}
-        total={totalRoles}
-      />
+      <Pagination
+        aria-label="角色列表分页"
+        className="flex flex-wrap items-center justify-between gap-3 rounded-[12px] bg-surface px-4 py-3"
+        size="sm"
+      >
+        <Pagination.Summary className="text-[12px] leading-[18px] text-text-secondary">
+          第 {safePage} / {pageCount} 页，共 {totalRoles} 项
+        </Pagination.Summary>
+        <Pagination.Content className="flex items-center gap-1">
+          <Pagination.Item>
+            <Pagination.Previous
+              isDisabled={safePage <= 1}
+              onPress={() => {
+                setPage(safePage - 1);
+              }}
+            >
+              上一页
+            </Pagination.Previous>
+          </Pagination.Item>
+          <Pagination.Item>
+            <Pagination.Link isActive>{safePage}</Pagination.Link>
+          </Pagination.Item>
+          <Pagination.Item>
+            <Pagination.Next
+              isDisabled={safePage >= pageCount}
+              onPress={() => {
+                setPage(safePage + 1);
+              }}
+            >
+              下一页
+            </Pagination.Next>
+          </Pagination.Item>
+        </Pagination.Content>
+      </Pagination>
 
       <EditRoleDialog
         accessToken={accessToken}

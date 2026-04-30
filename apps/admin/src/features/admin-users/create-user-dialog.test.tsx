@@ -9,11 +9,17 @@ const { createAdminUserMock, toastSuccessMock } = vi.hoisted(() => ({
   toastSuccessMock: vi.fn(),
 }));
 
-vi.mock("sonner", () => ({
-  toast: {
-    success: toastSuccessMock,
-  },
-}));
+vi.mock("@heroui/react", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@heroui/react")>();
+
+  return {
+    ...actual,
+    toast: {
+      ...actual.toast,
+      success: toastSuccessMock,
+    },
+  };
+});
 
 vi.mock("../../entities/admin/api", () => ({
   createAdminUser: createAdminUserMock,

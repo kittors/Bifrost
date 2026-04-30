@@ -25,7 +25,8 @@ test("root env example documents local development runtime and ports", () => {
   expectActiveEntry("BIFROST_ENV", "development");
   expectActiveEntry("BIFROST_PUBLIC_BASE_URL", "http://142.171.208.80:18080");
   expectActiveEntry("BIFROST_ADMIN_BASE_URL", "http://127.0.0.1:5173");
-  expectActiveEntry("VITE_GATEWAY_BASE_URL", "http://142.171.208.80:18080");
+  expectActiveEntry("VITE_GATEWAY_BASE_URL", "/__bifrost_gateway__");
+  expectActiveEntry("VITE_GATEWAY_DEV_PROXY_BASE_URL", "/__bifrost_gateway__");
   expectActiveEntry("BIFROST_REMOTE_DEV_GATEWAY_URL", "http://142.171.208.80:18080");
   expectActiveEntry("BIFROST_ADMIN_DEV_PORT", "5173");
   expectActiveEntry("BIFROST_DESKTOP_DEV_PORT", "22473");
@@ -82,6 +83,10 @@ test("admin development port is driven by the root env file", () => {
   assert.match(adminViteConfig, /envDir:\s*repositoryRoot/);
   assert.match(adminViteConfig, /loadEnv\(mode,\s*repositoryRoot,\s*""\)/);
   assert.match(adminViteConfig, /BIFROST_ADMIN_DEV_PORT/);
+  assert.match(adminViteConfig, /BIFROST_REMOTE_DEV_GATEWAY_URL/);
+  assert.match(adminViteConfig, /\/__bifrost_gateway__/);
+  assert.match(adminViteConfig, /proxy:/);
+  assert.match(adminViteConfig, /changeOrigin:\s*true/);
   assert.match(adminViteConfig, /port:\s*adminDevPort/);
   assert.match(adminViteConfig, /strictPort:\s*true/);
 });
