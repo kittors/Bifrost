@@ -1,6 +1,5 @@
-import { Button } from "@heroui/react";
+import { Button, toast } from "@heroui/react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { toast } from "sonner";
 
 import { getAdminDevice, setAdminDeviceStatus } from "../../entities/admin/api";
 import { QueryErrorState } from "../../shared/ui/query-error-state";

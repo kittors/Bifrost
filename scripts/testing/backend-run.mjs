@@ -31,7 +31,7 @@ let exitCode = 0;
 try {
   // 使用干净容器和干净数据库跑后端闭环，避免本地调试状态污染验收结果。
   await run("pnpm", ["test:e2e:down"]);
-  await run("pnpm", ["dev:backend"]);
+  await run("pnpm", ["dev:backend:local"]);
   // infra 测试验证仓库静态配置，应使用未覆写端口的默认环境。
   await run("pnpm", ["test:infra"], { useE2EEnv: false });
   await run("go", ["test", "./..."], {

@@ -1,3 +1,4 @@
+import { Pagination } from "@heroui/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -6,7 +7,6 @@ import { DeviceDetailDrawer } from "../features/admin-devices/device-detail-draw
 import { DevicesFilterBar } from "../features/admin-devices/devices-filter-bar";
 import { DevicesTable } from "../features/admin-devices/devices-table";
 import { getCurrentAdminSession } from "../features/auth/store";
-import { PaginationBar } from "../shared/ui/pagination-bar";
 import { QueryErrorState } from "../shared/ui/query-error-state";
 
 const devicesPageSize = 20;
@@ -28,6 +28,8 @@ export function DevicesPage() {
 
   const rows = devicesQuery.data?.items ?? [];
   const totalDevices = devicesQuery.data?.total ?? 0;
+  const pageCount = Math.max(1, Math.ceil(totalDevices / devicesPageSize));
+  const safePage = Math.min(Math.max(page, 1), pageCount);
 
   return (
     <div className="space-y-4">
@@ -64,12 +66,40 @@ export function DevicesPage() {
         <DevicesTable onOpenDetails={setSelectedDeviceID} rows={rows} totalDevices={totalDevices} />
       )}
 
-      <PaginationBar
-        onPageChange={setPage}
-        page={page}
-        pageSize={devicesPageSize}
-        total={totalDevices}
-      />
+      <Pagination
+        aria-label="设备列表分页"
+        className="flex flex-wrap items-center justify-between gap-3 rounded-[12px] bg-surface px-4 py-3"
+        size="sm"
+      >
+        <Pagination.Summary className="text-[12px] leading-[18px] text-text-secondary">
+          第 {safePage} / {pageCount} 页，共 {totalDevices} 项
+        </Pagination.Summary>
+        <Pagination.Content className="flex items-center gap-1">
+          <Pagination.Item>
+            <Pagination.Previous
+              isDisabled={safePage <= 1}
+              onPress={() => {
+                setPage(safePage - 1);
+              }}
+            >
+              上一页
+            </Pagination.Previous>
+          </Pagination.Item>
+          <Pagination.Item>
+            <Pagination.Link isActive>{safePage}</Pagination.Link>
+          </Pagination.Item>
+          <Pagination.Item>
+            <Pagination.Next
+              isDisabled={safePage >= pageCount}
+              onPress={() => {
+                setPage(safePage + 1);
+              }}
+            >
+              下一页
+            </Pagination.Next>
+          </Pagination.Item>
+        </Pagination.Content>
+      </Pagination>
 
       <DeviceDetailDrawer
         accessToken={accessToken}

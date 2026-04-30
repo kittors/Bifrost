@@ -64,7 +64,7 @@ http://mock-jenkins:8080
 http://mock-docs:8080
 ```
 
-宿主机访问：
+宿主机访问本地 Docker 调试环境：
 
 ```text
 http://localhost:8080
@@ -197,10 +197,20 @@ test:e2e
 
 具体命令在实现阶段写入 `package.json`、`turbo.json`、Makefile 或 Taskfile。
 
-当前已落地的 Docker 驱动 E2E 命令：
+当前默认本地开发闭环使用远端 dev 后端：
 
 ```bash
 pnpm dev:backend
+pnpm dev:admin
+```
+
+`pnpm dev:backend` 不启动 Docker，也不会拉取镜像；它只检查 `http://142.171.208.80:18080` 的 Gateway、readyz 和几个私有 upstream 代理是否可用。这样本地开发 Admin 或 Desktop 时，接口统一走已经由 `dev` 分支自动部署好的远端后端。
+
+如需本机隔离调试后端或跑完整后端回归，再显式使用本地 Docker 命令：
+
+```bash
+pnpm dev:backend:local
+pnpm dev:backend:local:down
 pnpm dev:backend:down
 pnpm test:backend
 pnpm test:e2e
@@ -208,9 +218,9 @@ pnpm test:e2e:up
 pnpm test:e2e:down
 ```
 
-其中后端专用命令用于不依赖客户端 UI 的联调与回归：
+其中 `dev:backend:local` 用于不依赖客户端 UI 的本地 Docker 联调与回归：
 
-1. `pnpm dev:backend`
+1. `pnpm dev:backend:local`
 2. 启动 PostgreSQL、多个 mock 上游和 Gateway。
 3. 自动执行 migration 与种子数据初始化。
 4. 保留环境，便于你直接调试 Gateway API、策略和代理链路。
@@ -220,7 +230,7 @@ Gateway:   http://127.0.0.1:18080
 Postgres:  127.0.0.1:15432
 ```
 
-`pnpm dev:backend:down` 用于回收上述后端环境。
+`pnpm dev:backend:local:down` 和 `pnpm dev:backend:down` 用于回收上述本地 Docker 后端环境。
 
 `pnpm test:backend` 用于一键执行后端闭环验证，会自动：
 

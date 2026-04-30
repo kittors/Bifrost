@@ -1,4 +1,4 @@
-import { Button } from "@heroui/react";
+import { Button, toast } from "@heroui/react";
 import { Link, Outlet, useLocation, useRouter } from "@tanstack/react-router";
 import {
   ClipboardList,
@@ -11,7 +11,6 @@ import {
   Users,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
 
 import { adminLogout } from "../../features/auth/api";
 import { useAdminSessionStore } from "../../features/auth/store";

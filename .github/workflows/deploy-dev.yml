@@ -1,0 +1,91 @@
+name: Deploy Dev
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - dev
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bifrost-dev-deploy
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  BIFROST_DEV_DEPLOY_HOST: "142.171.208.80"
+  BIFROST_DEV_DEPLOY_PORT: "48222"
+  BIFROST_DEV_DEPLOY_USER: "root"
+  BIFROST_DEV_DEPLOY_PATH: "/opt/bifrost-dev"
+  BIFROST_DEV_GATEWAY_PORT: "18080"
+
+jobs:
+  deploy:
+    name: Deploy dev environment
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: dev
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Validate deployment assets
+        run: node --test tests/infra/dev-deploy.test.mjs
+
+      - name: Configure SSH
+        env:
+          BIFROST_DEV_DEPLOY_KEY: ${{ secrets.BIFROST_DEV_DEPLOY_KEY }}
+        run: |
+          set -eu
+          if [ -z "${BIFROST_DEV_DEPLOY_KEY}" ]; then
+            echo "::error::Missing BIFROST_DEV_DEPLOY_KEY repository secret"
+            exit 1
+          fi
+
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "${BIFROST_DEV_DEPLOY_KEY}" > "${HOME}/.ssh/bifrost-dev"
+          chmod 600 "${HOME}/.ssh/bifrost-dev"
+          ssh-keyscan -p "${BIFROST_DEV_DEPLOY_PORT}" "${BIFROST_DEV_DEPLOY_HOST}" >> ~/.ssh/known_hosts
+
+      - name: Upload release bundle
+        run: |
+          set -eu
+          remote="${BIFROST_DEV_DEPLOY_USER}@${BIFROST_DEV_DEPLOY_HOST}"
+          ssh_args="-i ${HOME}/.ssh/bifrost-dev -p ${BIFROST_DEV_DEPLOY_PORT}"
+
+          tar \
+            --exclude='.git' \
+            --exclude='.env' \
+            --exclude='.env.*' \
+            --exclude='.playwright-mcp' \
+            --exclude='node_modules' \
+            --exclude='test-results' \
+            --exclude='bifrost-login-*.png' \
+            -czf - . \
+            | ssh ${ssh_args} "${remote}" "\
+                set -eu; \
+                rm -rf '${BIFROST_DEV_DEPLOY_PATH}/release-next'; \
+                mkdir -p '${BIFROST_DEV_DEPLOY_PATH}/release-next' '${BIFROST_DEV_DEPLOY_PATH}/shared'; \
+                tar -xzf - -C '${BIFROST_DEV_DEPLOY_PATH}/release-next'; \
+                rm -rf '${BIFROST_DEV_DEPLOY_PATH}/current'; \
+                mv '${BIFROST_DEV_DEPLOY_PATH}/release-next' '${BIFROST_DEV_DEPLOY_PATH}/current'"
+
+      - name: Run remote deployment
+        run: |
+          set -eu
+          remote="${BIFROST_DEV_DEPLOY_USER}@${BIFROST_DEV_DEPLOY_HOST}"
+          ssh -i ~/.ssh/bifrost-dev -p "${BIFROST_DEV_DEPLOY_PORT}" "${remote}" "\
+            cd '${BIFROST_DEV_DEPLOY_PATH}/current' && \
+            BIFROST_DEPLOY_STATE_DIR='${BIFROST_DEV_DEPLOY_PATH}/shared' \
+            BIFROST_DEV_GATEWAY_PORT='${BIFROST_DEV_GATEWAY_PORT}' \
+            ./deploy/dev/deploy.sh"
+
+      - name: Verify public gateway health
+        run: |
+          set -eu
+          curl --fail --silent --show-error --retry 10 --retry-delay 3 \
+            "http://${BIFROST_DEV_DEPLOY_HOST}:${BIFROST_DEV_GATEWAY_PORT}/healthz"

@@ -1,7 +1,6 @@
-import { Button } from "@heroui/react";
+import { Button, toast } from "@heroui/react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
 
 import { listUserServiceOverrides, replaceUserServiceOverrides } from "../../entities/admin/api";
 import type { AdminService, AdminUser } from "../../entities/admin/types";

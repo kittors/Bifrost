@@ -1,10 +1,10 @@
 import "@bifrost/design-tokens/app.css";
 
+import { ToastProvider } from "@heroui/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { Toaster } from "sonner";
 
 import { router } from "./app/router";
 
@@ -27,7 +27,7 @@ ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <RouterProvider context={{ queryClient }} router={router} />
-      <Toaster position="top-right" richColors />
+      <ToastProvider placement="top end" />
     </QueryClientProvider>
   </React.StrictMode>,
 );

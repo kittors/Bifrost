@@ -1,9 +1,8 @@
-import { Button, Input } from "@heroui/react";
+import { Button, Input, toast } from "@heroui/react";
 import { Dialog } from "../../shared/ui/dialog";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
 import { z } from "zod";
 
 import { createAdminRole } from "../../entities/admin/api";

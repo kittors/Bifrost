@@ -36,15 +36,16 @@ pnpm install --frozen-lockfile
 
 | 目标 | 启动命令 | 默认访问地址 | 停止命令 |
 |---|---|---|---|
-| 只启动后端服务 | `pnpm dev:backend` | Gateway：`http://127.0.0.1:18080` | `pnpm dev:backend:down` |
-| 启动后台 Admin Web | `pnpm test:e2e:up` | Admin Web：`http://127.0.0.1:15173` | `pnpm test:e2e:down` |
+| 检查远端 dev 后端 | `pnpm dev:backend` | Gateway：`http://142.171.208.80:18080` | 无常驻进程 |
+| 启动后台管理页面 | `pnpm dev:admin` | Admin Web：`http://127.0.0.1:5173` | `Ctrl+C` |
+| 启动本机 Docker 后端 | `pnpm dev:backend:local` | Gateway：`http://127.0.0.1:18080` | `pnpm dev:backend:local:down` |
 | 启动桌面客户端 | `pnpm --filter @bifrost/desktop dev` | Electron 开发服务：`http://127.0.0.1:22473` | 关闭 Electron 窗口，必要时再停后端 |
 
-### 启动后端服务
+### 检查远端 dev 后端
 
-后端服务包含 PostgreSQL、Gateway 和多个 mock 私有服务，适合调试 Gateway API、客户端登录、服务列表和代理链路。
+本地默认不再拉起 Docker 后端。后端由 `dev` 分支推送后通过 GitHub Action 自动部署到远端服务器，本地只检查远端 Gateway 和私有上游代理是否可用。
 
-启动：
+检查：
 
 ```bash
 pnpm dev:backend
@@ -53,36 +54,37 @@ pnpm dev:backend
 默认地址：
 
 ```text
-Gateway:   http://127.0.0.1:18080
-Postgres:  127.0.0.1:15432
+Gateway: http://142.171.208.80:18080
 ```
 
 健康检查：
 
 ```bash
-curl http://127.0.0.1:18080/healthz
+curl http://142.171.208.80:18080/healthz
 ```
 
-停止：
+`pnpm dev:backend` 只检查远端后端，不会启动后台管理页面，也不会启动 Docker。
+
+如需本机 Docker 后端：
 
 ```bash
-pnpm dev:backend:down
+pnpm dev:backend:local
+pnpm dev:backend:local:down
 ```
 
-### 启动后台 Admin Web
+### 启动后台管理页面
 
-后台 Admin Web 需要 Gateway 和数据库一起运行。最省心的方式是启动完整本地联调环境：
+后台管理页面是 `apps/admin` 的 Vite 应用。它默认读取根目录 `.env`，接口地址走远端 dev 后端 `http://142.171.208.80:18080`。
 
 ```bash
-pnpm test:e2e:up
+pnpm dev:admin
 ```
 
 默认地址：
 
 ```text
-Admin Web: http://127.0.0.1:15173
-Gateway:   http://127.0.0.1:18080
-Postgres:  127.0.0.1:15432
+Admin Web: http://127.0.0.1:5173
+Gateway:   http://142.171.208.80:18080
 ```
 
 后台登录账号：
@@ -95,22 +97,20 @@ Postgres:  127.0.0.1:15432
 停止：
 
 ```bash
-pnpm test:e2e:down
+Ctrl+C
 ```
 
-注意：`pnpm dev:backend` 只启动后端环境，不启动 Admin Web。如果你要看后台页面，请使用 `pnpm test:e2e:up`。
+注意：`pnpm dev:backend` 只检查远端后端连通性，不启动后台管理页面。如果你要看后台页面，请使用 `pnpm dev:admin`。
 
 ### 启动桌面客户端
 
-桌面客户端是 Electron 应用。它可以单独启动，但要完成登录、拉取服务列表和打开受控服务，需要先启动后端服务。
+桌面客户端是 Electron 应用。它可以单独启动，但要完成登录、拉取服务列表和打开受控服务，需要先确认远端 dev 后端可用。
 
-先启动后端：
+先检查后端：
 
 ```bash
 pnpm dev:backend
 ```
-
-如果你已经通过 `pnpm test:e2e:up` 启动了完整联调环境，可以跳过这一步，直接启动桌面客户端。
 
 另开一个终端，启动桌面客户端：
 
@@ -127,18 +127,12 @@ BIFROST_DESKTOP_DEV_PORT=22474 pnpm --filter @bifrost/desktop dev
 客户端登录信息：
 
 ```text
-Server URL: http://127.0.0.1:18080
+Server URL: http://142.171.208.80:18080
 Username:   alice
 Password:   ChangeMe123!
 ```
 
-登录成功后，客户端会在 `127.0.0.1:18080` 到 `127.0.0.1:18099` 中选择一个可用端口启动 Bifrost 专用本地回环代理。因为本地 Gateway 默认占用 `18080`，客户端通常会自动避让到下一个可用端口；实际服务入口以客户端界面显示的地址为准。
-
-停止后端：
-
-```bash
-pnpm dev:backend:down
-```
+登录成功后，客户端会在 `127.0.0.1:18080` 到 `127.0.0.1:18099` 中选择一个可用端口启动 Bifrost 专用本地回环代理；实际服务入口以客户端界面显示的地址为准。
 
 ### 运行完整本地 E2E
 
@@ -152,9 +146,10 @@ pnpm test:e2e
 
 ### 常用本地入口
 
-- Gateway 健康检查：`http://127.0.0.1:18080/healthz`
-- Admin Web：`http://127.0.0.1:15173`（由 `pnpm test:e2e` / `pnpm test:e2e:up` 启动）
-- E2E PostgreSQL：`127.0.0.1:15432`
+- 远端 dev Gateway 健康检查：`http://142.171.208.80:18080/healthz`
+- 本地后台管理页面：`http://127.0.0.1:5173`（由 `pnpm dev:admin` 启动）
+- 本地 E2E Admin Web：`http://127.0.0.1:15173`（由 `pnpm test:e2e` / `pnpm test:e2e:up` 启动）
+- 本地 E2E PostgreSQL：`127.0.0.1:15432`
 
 ## 发布命令
 

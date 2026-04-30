@@ -6,6 +6,36 @@
 - 图标按钮和状态入口优先使用 `lucide-react` 图标；按钮内有图标时保持紧凑尺寸，避免页面层手写 SVG。
 - 允许在 app 内保留很薄的 HeroUI 适配层来承接 Modal、Drawer、错误态等局部组合，但底层必须消费 HeroUI 组件，不要创建新的跨包 UI 组件库。
 
+## 语言与注释规范
+
+- 所有面向用户的回答默认使用中文；除非用户明确要求其他语言，或必须保留命令、错误原文、API 名称、协议字段等不可翻译内容。
+- 新增或修改注释时默认使用中文，包括代码注释、配置文件注释、脚本输出说明和文档里的说明性文字。
+- 环境变量名、包名、命令名、URL、HTTP 字段、错误码、第三方产品名等技术标识保持原文，不要为了中文化而改坏可执行内容。
+
+## 分支与发布流程
+
+- 开发新的功能必须新建分支，不允许直接在 `dev` 或 `main` 上开发功能代码。
+- 功能分支完成后必须跑完对应测试；测试没有任何问题后合并到 dev 分支中。
+- 需要线上测试时，先合并到 `dev` 分支并推送远端，等待 GitHub Action 执行完成。
+- GitHub Action 执行完成后，先确认部署环境接口已通，再开始线上功能测试。
+- `main` 只接收已经在 `dev` 验证过的内容；不要跳过 `dev` 直接合并到 `main`。
+
+## dev 环境与自动部署
+
+- dev 环境服务器连接方式：`ssh -p 48222 root@142.171.208.80`。
+- dev 环境项目目录：`/opt/bifrost-dev/current`。
+- dev 环境共享状态与环境变量目录：`/opt/bifrost-dev/shared`，核心环境变量文件是 `/opt/bifrost-dev/shared/dev.env`。
+- dev 环境 Docker Compose project name：`bifrost-remote-dev`。
+- dev 环境 Gateway 对外测试地址：`http://142.171.208.80:18080`。
+- dev 环境只暴露 Gateway 的 `18080` 端口；Postgres、mock GitLab、mock Jenkins、mock Docs、mock internal-admin 只能在服务器 Docker 内网访问，不允许直接暴露到公网。
+- dev 环境 GitHub Action 配置文件：`.github/workflows/deploy-dev.yml`。
+- 推送到 `dev` 分支后会通过 GitHub Action 自动部署到 dev 环境；部署脚本会上传代码到 `/opt/bifrost-dev/current`，执行 `deploy/dev/deploy.sh`，构建镜像、启动依赖、执行 migrate 和 seed，然后检查 Gateway 健康状态。
+- 本地只检查远端后端时执行 `pnpm dev:backend`；这条命令不会启动后台管理页面。
+- 本地启动后台管理页面执行 `pnpm dev:admin`，默认通过 `VITE_GATEWAY_BASE_URL=http://142.171.208.80:18080` 访问远端 dev Gateway。
+- 线上测试闭环：功能分支测试通过后合并并推送到 `dev` 分支，等待 GitHub Action 执行完成，再先执行 `pnpm test:remote-api` 做接口检查；接口检查通过后再开始后台页面或桌面端功能测试。
+- 远端接口测试失败时，不要直接在服务器热修代码；必须回到功能分支修复、测试、合并并推送到 `dev`，等待 GitHub Action 部署后再次执行接口检查。
+- dev 环境种子测试账号：管理员 `admin / ChangeMe123!`，客户端用户 `alice / ChangeMe123!`，另一个普通用户 `bob / ChangeMe123!`。
+
 ## 应用职责
 
 ### `apps/desktop`

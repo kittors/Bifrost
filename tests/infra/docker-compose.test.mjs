@@ -47,6 +47,16 @@ test("docker compose exposes host entrypoints and health checks", () => {
   }
 });
 
+test("docker compose uses the Postgres 18 compatible data volume target", () => {
+  const config = loadComposeConfig();
+  const services = config.services ?? {};
+
+  assert.deepEqual(
+    services.postgres?.volumes?.map((volume) => volume.target),
+    ["/var/lib/postgresql"],
+  );
+});
+
 test("root scripts and env example expose local infrastructure commands", () => {
   const packageJson = JSON.parse(
     readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
@@ -87,7 +97,12 @@ test("root scripts expose backend-only environment and validation commands", () 
     readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
   );
 
-  assert.equal(packageJson.scripts["dev:backend"], "node ./scripts/testing/backend-up.mjs");
+  assert.equal(packageJson.scripts["dev:backend"], "node ./scripts/dev/remote-backend.mjs");
+  assert.equal(packageJson.scripts["dev:backend:local"], "node ./scripts/testing/backend-up.mjs");
+  assert.equal(
+    packageJson.scripts["dev:backend:local:down"],
+    "node ./scripts/testing/e2e-down.mjs",
+  );
   assert.equal(packageJson.scripts["dev:backend:down"], "node ./scripts/testing/e2e-down.mjs");
   assert.equal(packageJson.scripts["test:backend"], "node ./scripts/testing/backend-run.mjs");
   assert.ok(
@@ -110,6 +125,7 @@ test("admin web image builds the real Vite application", () => {
     existsSync(new URL("../../docker/admin-web/nginx.conf", import.meta.url)),
     "admin nginx runtime config is required",
   );
+  assert.match(dockerfile, /COPY scripts\/package-manager \.\/scripts\/package-manager/);
   assert.match(dockerfile, /pnpm --filter @bifrost\/admin build/);
   assert.match(dockerfile, /COPY --from=builder .*apps\/admin\/dist/);
 });

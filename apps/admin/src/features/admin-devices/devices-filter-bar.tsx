@@ -1,4 +1,4 @@
-import { Input } from "@heroui/react";
+import { Input, ListBox, Select } from "@heroui/react";
 
 type DevicesFilterBarProps = {
   keyword: string;
@@ -13,6 +13,8 @@ export function DevicesFilterBar({
   onStatusChange,
   status,
 }: DevicesFilterBarProps) {
+  const selectedStatusKey = status || "all";
+
   return (
     <section className="rounded-[14px] border border-border bg-surface p-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -24,17 +26,27 @@ export function DevicesFilterBar({
           placeholder="搜索设备名、用户名或指纹"
           value={keyword}
         />
-        <select
-          className="h-[32px] rounded-[6px] border border-border bg-surface px-3 text-[13px] leading-[20px]"
-          onChange={(event) => {
-            onStatusChange(event.target.value);
+        <Select
+          aria-label="设备状态筛选"
+          className="w-[150px]"
+          onSelectionChange={(key) => {
+            const value = String(key);
+            onStatusChange(value === "all" ? "" : value);
           }}
-          value={status}
+          selectedKey={selectedStatusKey}
         >
-          <option value="">全部状态</option>
-          <option value="trusted">Trusted</option>
-          <option value="disabled">Disabled</option>
-        </select>
+          <Select.Trigger>
+            <Select.Value />
+            <Select.Indicator />
+          </Select.Trigger>
+          <Select.Popover>
+            <ListBox>
+              <ListBox.Item id="all">全部状态</ListBox.Item>
+              <ListBox.Item id="trusted">Trusted</ListBox.Item>
+              <ListBox.Item id="disabled">Disabled</ListBox.Item>
+            </ListBox>
+          </Select.Popover>
+        </Select>
       </div>
     </section>
   );

@@ -1,4 +1,4 @@
-import { Button } from "@heroui/react";
+import { Button, ListBox, Pagination, Select, Table } from "@heroui/react";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
@@ -6,12 +6,10 @@ import { listAdminAuditEvents, requireAccessToken } from "../entities/admin/api"
 import type { AdminAuditEvent } from "../entities/admin/types";
 import { getCurrentAdminSession } from "../features/auth/store";
 import { formatAuditType } from "../shared/lib/format";
-import { PaginationBar } from "../shared/ui/pagination-bar";
 import { QueryErrorState } from "../shared/ui/query-error-state";
 import { StatusBadge } from "../shared/ui/status-badge";
 import { Drawer } from "../shared/ui/drawer";
 import { EmptyState } from "../shared/ui/empty-state";
-import { Table } from "../shared/ui/table";
 
 const auditPageSize = 20;
 
@@ -28,10 +26,11 @@ export function AuditEventsPage() {
   });
 
   const rows = auditQuery.data?.items ?? [];
-  const caption = useMemo(
-    () => `当前共有 ${auditQuery.data?.total ?? 0} 条审计记录`,
-    [auditQuery.data?.total],
-  );
+  const totalAuditEvents = auditQuery.data?.total ?? 0;
+  const pageCount = Math.max(1, Math.ceil(totalAuditEvents / auditPageSize));
+  const safePage = Math.min(Math.max(page, 1), pageCount);
+  const selectedResultKey = result || "all";
+  const caption = useMemo(() => `当前共有 ${totalAuditEvents} 条审计记录`, [totalAuditEvents]);
 
   return (
     <div className="space-y-4">
@@ -43,64 +42,127 @@ export function AuditEventsPage() {
       </section>
 
       <section className="rounded-[14px] border border-border bg-surface p-4">
-        <select
-          className="h-[32px] rounded-[6px] border border-border bg-surface px-3 text-[13px] leading-[20px]"
-          onChange={(event) => {
-            setResult(event.target.value);
+        <Select
+          aria-label="审计结果筛选"
+          className="w-[150px]"
+          onSelectionChange={(key) => {
+            const value = String(key);
+            setResult(value === "all" ? "" : value);
             setPage(1);
           }}
-          value={result}
+          selectedKey={selectedResultKey}
         >
-          <option value="">全部结果</option>
-          <option value="success">Success</option>
-          <option value="failure">Failure</option>
-        </select>
+          <Select.Trigger>
+            <Select.Value />
+            <Select.Indicator />
+          </Select.Trigger>
+          <Select.Popover>
+            <ListBox>
+              <ListBox.Item id="all">全部结果</ListBox.Item>
+              <ListBox.Item id="success">Success</ListBox.Item>
+              <ListBox.Item id="failure">Failure</ListBox.Item>
+            </ListBox>
+          </Select.Popover>
+        </Select>
       </section>
 
       {auditQuery.error ? (
         <QueryErrorState error={auditQuery.error} title="审计列表加载失败" />
       ) : null}
 
-      <section className="overflow-hidden rounded-[14px] border border-border bg-surface">
+      <section className="overflow-hidden rounded-[12px] bg-surface">
         {rows.length === 0 && !auditQuery.isLoading ? (
           <div className="px-4 py-8">
             <EmptyState description="当前没有审计记录。" title="暂无审计记录" />
           </div>
         ) : (
-          <Table.Root>
-            <Table.Caption>{caption}</Table.Caption>
-            <Table.Header>
-              <Table.Head>事件</Table.Head>
-              <Table.Head>摘要</Table.Head>
-              <Table.Head>结果</Table.Head>
-              <Table.Head className="text-right">操作</Table.Head>
-            </Table.Header>
-            <Table.Body>
-              {rows.map((event) => (
-                <Table.Row key={event.id}>
-                  <Table.Cell>{formatAuditType(event.type)}</Table.Cell>
-                  <Table.Cell>{event.summary}</Table.Cell>
-                  <Table.Cell>
-                    <StatusBadge status={event.result} />
-                  </Table.Cell>
-                  <Table.Cell className="text-right">
-                    <Button onClick={() => setSelectedEvent(event)} size="sm" variant="secondary">
-                      查看详情
-                    </Button>
-                  </Table.Cell>
-                </Table.Row>
-              ))}
-            </Table.Body>
-          </Table.Root>
+          <Table className="w-full">
+            <Table.ScrollContainer className="overflow-x-auto">
+              <Table.Content aria-label="审计记录数据表" className="w-full text-left">
+                <Table.Header className="[&_tr]:border-b [&_tr]:border-border">
+                  <Table.Column className="h-[36px] px-3 text-[12px] leading-[18px] font-medium text-text-secondary">
+                    事件
+                  </Table.Column>
+                  <Table.Column className="h-[36px] px-3 text-[12px] leading-[18px] font-medium text-text-secondary">
+                    摘要
+                  </Table.Column>
+                  <Table.Column className="h-[36px] px-3 text-[12px] leading-[18px] font-medium text-text-secondary">
+                    结果
+                  </Table.Column>
+                  <Table.Column className="h-[36px] px-3 text-right text-[12px] leading-[18px] font-medium text-text-secondary">
+                    操作
+                  </Table.Column>
+                </Table.Header>
+                <Table.Body className="[&_tr:last-child]:border-0">
+                  {rows.map((event) => (
+                    <Table.Row
+                      className="h-[36px] border-b border-border transition-colors"
+                      key={event.id}
+                    >
+                      <Table.Cell className="px-3 text-[13px] leading-[20px] text-text-primary">
+                        {formatAuditType(event.type)}
+                      </Table.Cell>
+                      <Table.Cell className="px-3 text-[13px] leading-[20px] text-text-primary">
+                        {event.summary}
+                      </Table.Cell>
+                      <Table.Cell className="px-3 text-[13px] leading-[20px] text-text-primary">
+                        <StatusBadge status={event.result} />
+                      </Table.Cell>
+                      <Table.Cell className="px-3 text-right text-[13px] leading-[20px] text-text-primary">
+                        <Button
+                          onClick={() => setSelectedEvent(event)}
+                          size="sm"
+                          variant="secondary"
+                        >
+                          查看详情
+                        </Button>
+                      </Table.Cell>
+                    </Table.Row>
+                  ))}
+                </Table.Body>
+              </Table.Content>
+            </Table.ScrollContainer>
+            <Table.Footer className="px-3 pb-3 pt-2 text-[12px] leading-[18px] text-text-muted">
+              {caption}
+            </Table.Footer>
+          </Table>
         )}
       </section>
 
-      <PaginationBar
-        onPageChange={setPage}
-        page={page}
-        pageSize={auditPageSize}
-        total={auditQuery.data?.total ?? 0}
-      />
+      <Pagination
+        aria-label="审计记录分页"
+        className="flex flex-wrap items-center justify-between gap-3 rounded-[12px] bg-surface px-4 py-3"
+        size="sm"
+      >
+        <Pagination.Summary className="text-[12px] leading-[18px] text-text-secondary">
+          第 {safePage} / {pageCount} 页，共 {totalAuditEvents} 项
+        </Pagination.Summary>
+        <Pagination.Content className="flex items-center gap-1">
+          <Pagination.Item>
+            <Pagination.Previous
+              isDisabled={safePage <= 1}
+              onPress={() => {
+                setPage(safePage - 1);
+              }}
+            >
+              上一页
+            </Pagination.Previous>
+          </Pagination.Item>
+          <Pagination.Item>
+            <Pagination.Link isActive>{safePage}</Pagination.Link>
+          </Pagination.Item>
+          <Pagination.Item>
+            <Pagination.Next
+              isDisabled={safePage >= pageCount}
+              onPress={() => {
+                setPage(safePage + 1);
+              }}
+            >
+              下一页
+            </Pagination.Next>
+          </Pagination.Item>
+        </Pagination.Content>
+      </Pagination>
 
       <Drawer.Root
         onOpenChange={(open) => !open && setSelectedEvent(null)}
